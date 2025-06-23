@@ -1,0 +1,33 @@
+'use client';
+
+import { signIn, signOut, useSession } from "next-auth/react";
+
+export default function Home() {
+  const { data: session } = useSession();
+
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center p-8">
+      <main className="flex flex-col items-center justify-center text-center">
+        <h1 className="text-4xl font-bold mb-8">Welcome to Kids Spot</h1>
+        {!session ? (
+          <button
+            onClick={() => signIn('spotify')}
+            className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded"
+          >
+            Sign in with Spotify
+          </button>
+        ) : (
+          <div>
+            <p className="mb-4">Signed in as {session.user?.name}</p>
+            <button
+              onClick={() => signOut()}
+              className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
+            >
+              Sign Out
+            </button>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
