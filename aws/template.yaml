@@ -1,0 +1,91 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SAM template for Next.js app backend with DynamoDB tables and Lambda
+
+Parameters:
+  InternalSecret:
+    Type: String
+    NoEcho: true
+
+Resources:
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: tappyusers
+      AttributeDefinitions:
+        - AttributeName: userid
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userid
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  DevicesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: tappydevices
+      AttributeDefinitions:
+        - AttributeName: deviceid
+          AttributeType: S
+      KeySchema:
+        - AttributeName: deviceid
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  CardsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: tappycards
+      AttributeDefinitions:
+        - AttributeName: userid
+          AttributeType: S
+        - AttributeName: cardID
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userid
+          KeyType: HASH
+        - AttributeName: cardID
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+
+  GetUserCardsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: getUserCards
+      Handler: index.handler
+      Runtime: nodejs18.x
+      CodeUri: lambdas/getUserCards/
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: tappycards
+      Environment:
+        Variables:
+          CARDS_TABLE: tappycards
+          INTERNAL_SECRET: !Ref InternalSecret
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /cards
+            Method: get
+
+  RegisterUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: registerUser
+      Handler: index.handler
+      Runtime: nodejs18.x
+      CodeUri: lambdas/registerUser/
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: tappyusers
+      Environment:
+        Variables:
+          USERS_TABLE: tappyusers
+          INTERNAL_SECRET: !Ref InternalSecret
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /users
+            Method: post
