@@ -11,6 +11,12 @@ const handler = NextAuth({
   callbacks: {
       async signIn({ user, account }) {
         // Call your internal API route
+
+        if (!account || !user) {
+          // Block sign-in if account is null
+          return false;
+        }
+
         const res = await fetch(`${process.env.NEXTAUTH_URL}/api/register-user`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
