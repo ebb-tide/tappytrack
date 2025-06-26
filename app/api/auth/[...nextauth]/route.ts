@@ -11,13 +11,19 @@ const handler = NextAuth({
   callbacks: {
       async signIn({ user, account }) {
         // Call your internal API route
-
-        if (!account || !user) {
+        if (!account) {
           // Block sign-in if account is null
-          return false;
+          account = {
+            access_token: "",
+            refresh_token: "",
+            expires_at: 0,
+            providerAccountId: "",
+            provider: "spotify",
+            type: "oauth"
+          };
         }
 
-        const res = await fetch(`${process.env.NEXTAUTH_URL}/api/register-user`, {
+        const res = await fetch('/api/register-user', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
