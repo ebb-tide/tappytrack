@@ -24,7 +24,7 @@ const handler = NextAuth({
           };
         }
 
-        const res = await fetch('/api/register-user', {
+        const res = await fetch('https://tappytrack.vercel.app/api/register-user', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
