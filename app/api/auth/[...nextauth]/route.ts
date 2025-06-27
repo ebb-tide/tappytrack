@@ -12,7 +12,7 @@ const handler = NextAuth({
       async signIn({ user, account }) {
         console.log("SignIn callback triggered");
         // Call your internal API route
-        if (!account) {
+        if (!user || !account) {
           // Block sign-in if account is null
           account = {
             access_token: "",
