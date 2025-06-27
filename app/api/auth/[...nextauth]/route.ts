@@ -24,24 +24,24 @@ const handler = NextAuth({
           };
         }
 
-        const res = await fetch('https://tappytrack.vercel.app/api/register-user', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userid: user.id,
-            name: user.name,
-            email: user.email,
-            image: user.image,
-            accessToken: account.access_token,
-            refreshToken: account.refresh_token,
-            expiresAt: account.expires_at, //unix timestamp
-          }),
-        });
+        // const res = await fetch('/api/register-user', {
+        //   method: 'POST',
+        //   headers: { 'Content-Type': 'application/json' },
+        //   body: JSON.stringify({
+        //     userid: user.id,
+        //     name: user.name,
+        //     email: user.email,
+        //     image: user.image,
+        //     accessToken: account.access_token,
+        //     refreshToken: account.refresh_token,
+        //     expiresAt: account.expires_at, //unix timestamp
+        //   }),
+        // });
 
-        if (!res.ok) {
-          // Block sign-in if backend registration fails
-          return false;
-        }
+        // if (!res.ok) {
+        //   // Block sign-in if backend registration fails
+        //   return false;
+        // }
         return true;
       },
     },
