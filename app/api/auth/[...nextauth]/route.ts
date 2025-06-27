@@ -1,5 +1,4 @@
 import NextAuth from "next-auth";
-import { NextResponse } from 'next/server';
 import SpotifyProvider from "next-auth/providers/spotify";
 
 const handler = NextAuth({
