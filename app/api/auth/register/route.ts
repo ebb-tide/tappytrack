@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 export async function POST(){//req: NextRequest) {
-  // const userData = await req.json();
+  // const userData = await req.json(); 
   // console.dir(userData);
 
   // const LAMBDA_URL=process.env.LAMBDA_URL || '';
