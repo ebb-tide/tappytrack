@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function POST(req: NextRequest) {
-  const userData = await req.json();
-  console.dir(userData);
+export async function POST(){//req: NextRequest) {
+  // const userData = await req.json();
+  // console.dir(userData);
 
   // const LAMBDA_URL=process.env.LAMBDA_URL || '';
   // const LAMBDA_SECRET=process.env.LAMBDA_SECRET || '';
