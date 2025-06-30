@@ -2,6 +2,19 @@
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useState, useEffect} from "react"
 import { Button } from "@/components/ui/button"
+
+// Extend the session user type to include 'id'
+declare module "next-auth" {
+  interface Session {
+    user?: {
+      id?: string;
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+    }
+  }
+}
+
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Menu, User } from "lucide-react"
