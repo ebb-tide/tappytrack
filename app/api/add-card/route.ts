@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(req: NextRequest) {
   const { userid, cardID, spotifyURL } = await req.json();
   const LAMBDA_URL = process.env.LAMBDA_URL || '';
-  const INTERNAL_SECRET = process.env.INTERNAL_SECRET || '';
+  const INTERNAL_SECRET = process.env.LAMBDA_SECRET || '';
 
   const lambdaRes = await fetch(`${LAMBDA_URL}/cards`, {
     method: 'POST',

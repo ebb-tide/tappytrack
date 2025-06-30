@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
 
   // Replace with your deployed Lambda/API Gateway URL
   const LAMBDA_URL = process.env.LAMBDA_URL || '';
-  const INTERNAL_SECRET = process.env.INTERNAL_SECRET || '';
+  const INTERNAL_SECRET = process.env.LAMBDA_SECRET || '';
 
   const lambdaRes = await fetch(`${LAMBDA_URL}/cards/?userid=${encodeURIComponent(userid)}`, {
     method: 'GET',
