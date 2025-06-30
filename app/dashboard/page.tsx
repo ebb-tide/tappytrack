@@ -103,37 +103,32 @@ export default function Dashboard() {
         <main className="w-full max-w-2xl px-4 py-8 flex flex-col items-center justify-center">
           <div className="mb-8 p-6 border rounded-lg bg-gray-50 w-full">
             <div className="mb-4">
-              <div>
-                <div className="flex flex-col gap-6">
-                  <div className="grid gap-3">
-                    <Label htmlFor="cardid">CardID</Label>
-                    <Input
-                      id="cardid"
-                      placeholder="Enter value or flash a new card on your device to capture the ID"
-                      value={newCardId || ""}
-                      onChange={(e) => setNewCardId(e.target.value)}
-                      className="flex-1"
-                    />
-                  </div>
-                </div>
-              </div>
-              {/* <p className="text-sm text-muted-foreground">
-                    Flash a new card on your device to capture card ID and add it to your collection!
-                </p> */}
-            </div>
-            <div className="flex gap-4">
               <div className="flex flex-col gap-6">
                 <div className="grid gap-3">
-                  <Label htmlFor="cardid">Spotify URL</Label>
+                  <Label htmlFor="cardid">CardID</Label>
                   <Input
+                    id="cardid"
+                    placeholder="Enter value or flash a new card on your device to capture the ID"
+                    value={newCardId || ""}
+                    onChange={(e) => setNewCardId(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+                <div className="grid gap-3">
+                  <Label htmlFor="spotify-url">Spotify URL</Label>
+                  <Input
+                    id="spotify-url"
+                    type="url"
                     placeholder="Enter Spotify URL"
                     value={spotifyUrl}
                     onChange={(e) => setSpotifyUrl(e.target.value)}
-                    className="flex-1"
+                    className="w-full"
                   />
-                  <Button onClick={handleAddCard}>Add Card</Button>
                 </div>
-                </div>
+              </div>
+            </div>
+            <div className="flex justify-end mt-4">
+              <Button onClick={handleAddCard}>Add New Card</Button>
             </div>
           </div>
           <div className="rounded-md border w-full">
