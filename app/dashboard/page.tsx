@@ -1,6 +1,6 @@
 'use client';
 import { useSession, signIn, signOut } from 'next-auth/react';
-import { useState } from "react"
+import { useState, useEffect} from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -16,10 +16,24 @@ export default function Dashboard() {
   const { data: session, status } = useSession();
   const [newCardId, setNewCardId] = useState(null)
   const [spotifyUrl, setSpotifyUrl] = useState("")
-  const [cards, setCards] = useState<Card[]>([
-    { id: "CARD_1A2B3C", spotifyUrl: "https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT" },
-    { id: "CARD_4D5E6F", spotifyUrl: "https://open.spotify.com/album/0JGOiO34nwfUdDrD612dOp" },
-  ])
+  const [cards, setCards] = useState<Card[]>([])
+
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user?.id) {
+      // Replace with your actual API route or Lambda endpoint
+      fetch(`/api/get-cards?userid=${session.user.id}`)
+        .then(res => res.json())
+        .then(data => {
+          setCards(data.cards || []);
+          setNewCardId(data.lastCard || null);
+        })
+        .catch(err => {
+          // Optionally handle error
+          setCards([]);
+          setNewCardId(null);
+        });
+    }
+  }, [status, session]);
 
   const handleAddCard = () => {
     if (!newCardId) return
