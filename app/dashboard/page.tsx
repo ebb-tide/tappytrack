@@ -50,14 +50,27 @@ export default function Dashboard() {
     }
   }, [status, session]);
 
-  const handleAddCard = () => {
-    if (!newCardId) return
-    if (spotifyUrl.trim() === "") return
+const handleAddCard = async () => {
+  if (!newCardId || spotifyUrl.trim() === "" || !session?.user?.id) return;
 
-    setCards([...cards, { id: newCardId, spotifyUrl }])
-    setSpotifyUrl("")
-    setNewCardId("")
+  const res = await fetch('/api/add-card', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      userid: session.user.id,
+      cardID: newCardId,
+      spotifyURL: spotifyUrl,
+    }),
+  });
+
+  if (res.ok) {
+    setCards([...cards, { id: newCardId, spotifyUrl }]);
+    setSpotifyUrl("");
+    setNewCardId("");
+  } else {
+    console.log("Failed to add card:", res.statusText);
   }
+};
 
   const handleDeleteCard = (id: string) => {
     setCards(cards.filter((card) => card.id !== id))

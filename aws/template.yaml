@@ -91,3 +91,25 @@ Resources:
           Properties:
             Path: /users
             Method: post
+
+  AddCardFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: addCard
+      Handler: index.handler
+      Runtime: nodejs18.x
+      CodeUri: lambdas/addCard/
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - DynamoDBCrudPolicy:
+            TableName: tappycards
+      Environment:
+        Variables:
+          CARDS_TABLE: tappycards
+          INTERNAL_SECRET: !Ref InternalSecret
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /cards
+            Method: post
