@@ -57,6 +57,9 @@ const handler = NextAuth({
       session.refreshToken = token.refreshToken;
       // @ts-expect-error: Add custom property to session
       session.expiresAt = token.expiresAt;
+      if (session.user && token.sub) {
+        session.user.id = token.sub;
+      }
       return session;
     },
 

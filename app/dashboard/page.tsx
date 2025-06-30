@@ -52,7 +52,6 @@ export default function Dashboard() {
 
 const handleAddCard = async () => {
   if (!newCardId || spotifyUrl.trim() === "" || !session?.user?.id) return;
-
   const res = await fetch('/api/add-card', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
