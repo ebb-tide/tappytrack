@@ -5,7 +5,7 @@ export async function POST(req: NextRequest) {
   const LAMBDA_URL = process.env.LAMBDA_URL || '';
   const INTERNAL_SECRET = process.env.INTERNAL_SECRET || '';
 
-  const lambdaRes = await fetch(LAMBDA_URL, {
+  const lambdaRes = await fetch(`${LAMBDA_URL}/cards`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
