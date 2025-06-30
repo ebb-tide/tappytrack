@@ -29,6 +29,7 @@ export default function Dashboard() {
         })
         .catch(err => {
           // Optionally handle error
+          console.log("Error fetching cards:", err);
           setCards([]);
           setNewCardId(null);
         });
