@@ -3,6 +3,7 @@ import { useSession, signIn, signOut } from 'next-auth/react';
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
+import { RefreshCw } from "lucide-react"
 
 // Extend the session user type to include 'id'
 declare module "next-auth" {
@@ -28,48 +29,51 @@ interface Card {
 
 export default function Dashboard() {
   const { data: session, status } = useSession();
-  const [newCardId, setNewCardId] = useState("")
-  const [spotifyUrl, setSpotifyUrl] = useState("")
-  const [cards, setCards] = useState<Card[]>([])
+  const [newCardId, setNewCardId] = useState("");
+  const [spotifyUrl, setSpotifyUrl] = useState("");
+  const [cards, setCards] = useState<Card[]>([]);
+
+  // Refactored fetch logic
+  const fetchCards = async () => {
+    if (status === 'authenticated' && session?.user?.id) {
+      try {
+        const res = await fetch(`/api/get-cards?userid=${session.user.id}`);
+        const data = await res.json();
+        setCards(data.cards || []);
+        setNewCardId(data.lastCard || "");
+      } catch (err) {
+        console.log("Error fetching cards:", err);
+        setCards([]);
+        setNewCardId("");
+      }
+    }
+  };
 
   useEffect(() => {
-    if (status === 'authenticated' && session?.user?.id) {
-      // Replace with your actual API route or Lambda endpoint
-      fetch(`/api/get-cards?userid=${session.user.id}`)
-        .then(res => res.json())
-        .then(data => {
-          setCards(data.cards || []);
-          setNewCardId(data.lastCard || null);
-        })
-        .catch(err => {
-          // Optionally handle error
-          console.log("Error fetching cards:", err);
-          setCards([]);
-          setNewCardId("");
-        });
-    }
+    fetchCards();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, session]);
 
-const handleAddCard = async () => {
-  if (!newCardId || spotifyUrl.trim() === "" || !session?.user?.id) return;
-  const res = await fetch('/api/add-card', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      userid: session.user.id,
-      cardID: newCardId,
-      spotifyURL: spotifyUrl,
-    }),
-  });
+  const handleAddCard = async () => {
+    if (!newCardId || spotifyUrl.trim() === "" || !session?.user?.id) return;
+    const res = await fetch('/api/add-card', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userid: session.user.id,
+        cardID: newCardId,
+        spotifyURL: spotifyUrl,
+      }),
+    });
 
-  if (res.ok) {
-    setCards([...cards, { id: newCardId, spotifyUrl }]);
-    setSpotifyUrl("");
-    setNewCardId("");
-  } else {
-    console.log("Failed to add card:", res.statusText);
-  }
-};
+    if (res.ok) {
+      setCards([...cards, { id: newCardId, spotifyUrl }]);
+      setSpotifyUrl("");
+      setNewCardId("");
+    } else {
+      console.log("Failed to add card:", res.statusText);
+    }
+  };
 
   const handleDeleteCard = async (id: string) => {
     if (!session?.user?.id) return;
@@ -149,7 +153,16 @@ const handleAddCard = async () => {
                 </div>
               </div>
             </div>
-            <div className="flex justify-end mt-4">
+            <div className="flex justify-end mt-4 gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Refresh cards"
+                onClick={fetchCards}
+                className="h-9 w-9"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
               <Button onClick={handleAddCard}>Add New Card</Button>
             </div>
           </div>
