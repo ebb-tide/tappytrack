@@ -33,6 +33,7 @@ export default function Dashboard() {
   const [spotifyUrl, setSpotifyUrl] = useState("");
   const [cards, setCards] = useState<Card[]>([]);
   const [showDeviceModal, setShowDeviceModal] = useState(false);
+  const [newDeviceId, setNewDeviceId] = useState("");
   const [deviceId, setDeviceId] = useState("");
   const deviceInputRef = useRef<HTMLInputElement>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -45,10 +46,18 @@ export default function Dashboard() {
         const data = await res.json();
         setCards(data.cards || []);
         setNewCardId(data.lastCard || "");
+        setDeviceId(data.deviceId || "");
+        if (!data.deviceId) {
+          setShowDeviceModal(true);
+          if (deviceInputRef.current) {
+            deviceInputRef.current.focus();
+          }
+        }
       } catch (err) {
         console.log("Error fetching cards:", err);
         setCards([]);
         setNewCardId("");
+        setDeviceId("");
       }
     }
   };
@@ -93,11 +102,11 @@ export default function Dashboard() {
     }
   }
 
-  const handleDeviceSubmit = (e: React.FormEvent) => {
+  const handleNewDeviceSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // TODO: handle device ID submission logic here
     setShowDeviceModal(false);
-    setDeviceId("");
+    setNewDeviceId("");
   };
 
   if (status === 'loading') return <div>Loading...</div>;
@@ -113,19 +122,19 @@ export default function Dashboard() {
         <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/30">
           <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-sm border flex flex-col items-center">
             <h2 className="text-xl font-semibold mb-4">Enter Device ID</h2>
-            <form onSubmit={handleDeviceSubmit} className="w-full flex flex-col gap-4">
+            <form onSubmit={handleNewDeviceSubmit} className="w-full flex flex-col gap-4">
               <Input
                 ref={deviceInputRef}
-                value={deviceId}
-                onChange={e => setDeviceId(e.target.value)}
+                value={newDeviceId}
+                onChange={e => setNewDeviceId(e.target.value)}
                 placeholder="Device ID"
                 className="w-full"
                 autoFocus
               />
               <Button type="submit" className="w-full">Submit</Button>
-               {/* <Button type="button" variant="ghost" className="w-full" onClick={() => setShowDeviceModal(false)}>
+              <Button type="button" variant="ghost" className="w-full" onClick={() => setShowDeviceModal(false)}>
                 Cancel
-              </Button>  */}
+              </Button> 
             </form>
           </div>
         </div>
