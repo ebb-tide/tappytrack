@@ -71,8 +71,18 @@ const handleAddCard = async () => {
   }
 };
 
-  const handleDeleteCard = (id: string) => {
-    setCards(cards.filter((card) => card.id !== id))
+  const handleDeleteCard = async (id: string) => {
+    if (!session?.user?.id) return;
+    const res = await fetch('/api/delete-card', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userid: session.user.id, cardID: id }),
+    });
+    if (res.ok) {
+      setCards(cards.filter((card) => card.id !== id));
+    } else {
+      console.log('Failed to delete card:', res.statusText);
+    }
   }
 
   if (status === 'loading') return <div>Loading...</div>;

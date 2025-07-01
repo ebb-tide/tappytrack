@@ -73,6 +73,28 @@ Resources:
             Path: /cards
             Method: get
 
+  DeleteCardFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: deleteCard
+      Handler: index.handler
+      Runtime: nodejs18.x
+      CodeUri: lambdas/deleteCard/
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - DynamoDBCrudPolicy:
+            TableName: tappycards
+      Environment:
+        Variables:
+          CARDS_TABLE: tappycards
+          INTERNAL_SECRET: !Ref InternalSecret
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /cards
+            Method: delete
+
   RegisterUserFunction:
     Type: AWS::Serverless::Function
     Properties:
