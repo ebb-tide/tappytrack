@@ -35,6 +35,7 @@ export default function Dashboard() {
   const [showDeviceModal, setShowDeviceModal] = useState(false);
   const [deviceId, setDeviceId] = useState("");
   const deviceInputRef = useRef<HTMLInputElement>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   // Refactored fetch logic
   const fetchCards = async () => {
@@ -122,9 +123,9 @@ export default function Dashboard() {
                 autoFocus
               />
               <Button type="submit" className="w-full">Submit</Button>
-              /* <Button type="button" variant="ghost" className="w-full" onClick={() => setShowDeviceModal(false)}>
+               {/* <Button type="button" variant="ghost" className="w-full" onClick={() => setShowDeviceModal(false)}>
                 Cancel
-              </Button> */
+              </Button>  */}
             </form>
           </div>
         </div>
@@ -136,15 +137,15 @@ export default function Dashboard() {
             <Button variant="ghost" size="icon" className="rounded-full" aria-label="User account">
               <User className="h-5 w-5" />
             </Button>
-            <Sheet>
+            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full" aria-label="Menu">
+                <Button variant="ghost" size="icon" className="rounded-full" aria-label="Menu" onClick={() => setSheetOpen(true)}>
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
               <SheetContent>
                 <nav className="grid gap-4 py-4">
-                  <Button variant="ghost" className="justify-start" onClick={() => setShowDeviceModal(true)}>
+                  <Button variant="ghost" className="justify-start" onClick={() => {setShowDeviceModal(true); setSheetOpen(false);}}>
                     Connect new device
                   </Button>
                   <Button variant="ghost" className="justify-start" onClick={() => signOut({ callbackUrl: '/' })}>
