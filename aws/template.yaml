@@ -163,3 +163,31 @@ Resources:
           Properties:
             Path: /cards
             Method: post
+
+  TapCardFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: tapCard
+      Handler: index.handler
+      Runtime: nodejs18.x
+      CodeUri: lambdas/tapCard/
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - DynamoDBCrudPolicy:
+            TableName: tappycards
+        - DynamoDBCrudPolicy:
+            TableName: tappyusers
+        - DynamoDBCrudPolicy:
+            TableName: tappydevices
+      Environment:
+        Variables:
+          CARDS_TABLE: tappycards
+          USERS_TABLE: tappyusers
+          DEVICES_TABLE: tappydevices
+          INTERNAL_SECRET: !Ref InternalSecret
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /tap
+            Method: post
