@@ -42,7 +42,7 @@ exports.handler = async (event) => {
     return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
 
-  const deviceId = user.deviceId
+  const deviceid = user.deviceid
 
   // 2. Check last card timestamp
   let lastCard = null;
@@ -75,6 +75,6 @@ exports.handler = async (event) => {
 
   return {
     statusCode: 200,
-    body: JSON.stringify({ cards, lastCard, deviceId })
+    body: JSON.stringify({ cards, lastCard, deviceid })
   };
 };

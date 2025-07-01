@@ -34,7 +34,7 @@ export default function Dashboard() {
   const [cards, setCards] = useState<Card[]>([]);
   const [showDeviceModal, setShowDeviceModal] = useState(false);
   const [newDeviceId, setNewDeviceId] = useState("");
-  const [deviceId, setDeviceId] = useState("");
+  const [deviceid, setDeviceId] = useState("");
   const deviceInputRef = useRef<HTMLInputElement>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -46,8 +46,8 @@ export default function Dashboard() {
         const data = await res.json();
         setCards(data.cards || []);
         setNewCardId(data.lastCard || "");
-        setDeviceId(data.deviceId || "");
-        if (!data.deviceId) {
+        setDeviceId(data.deviceid || "");
+        if (!data.deviceid) {
           setShowDeviceModal(true);
           if (deviceInputRef.current) {
             deviceInputRef.current.focus();
@@ -223,6 +223,12 @@ export default function Dashboard() {
               <Button onClick={handleAddCard}>Add New Card</Button>
             </div>
           </div>
+          {/* Device ID display */}
+          {deviceid && (
+            <div className="mb-4 w-full flex items-center justify-center">
+              <span className="text-sm text-muted-foreground">Device ID: <span className="font-mono text-base text-black">{deviceid}</span></span>
+            </div>
+          )}
           <div className="rounded-md border w-full">
             <Table>
               <TableHeader>
