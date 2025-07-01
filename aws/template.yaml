@@ -59,9 +59,12 @@ Resources:
         - AWSLambdaBasicExecutionRole
         - DynamoDBCrudPolicy:
             TableName: tappycards
+        - DynamoDBCrudPolicy:
+            TableName: tappyusers
       Environment:
         Variables:
           CARDS_TABLE: tappycards
+          USERS_TABLE: tappyusers
           INTERNAL_SECRET: !Ref InternalSecret
       Events:
         Api:
