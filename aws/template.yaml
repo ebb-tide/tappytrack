@@ -117,6 +117,31 @@ Resources:
             Path: /users
             Method: post
 
+  AddDeviceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: addDevice
+      Handler: index.handler
+      Runtime: nodejs18.x
+      CodeUri: lambdas/addDevice/
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - DynamoDBCrudPolicy:
+            TableName: tappyusers
+        - DynamoDBCrudPolicy:
+            TableName: tappydevices
+      Environment:
+        Variables:
+          USERS_TABLE: tappyusers
+          DEVICES_TABLE: tappydevices
+          INTERNAL_SECRET: !Ref InternalSecret
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /devices
+            Method: post
+
   AddCardFunction:
     Type: AWS::Serverless::Function
     Properties:

@@ -102,11 +102,26 @@ export default function Dashboard() {
     }
   }
 
-  const handleNewDeviceSubmit = (e: React.FormEvent) => {
+  const handleNewDeviceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: handle device ID submission logic here
-    setShowDeviceModal(false);
-    setNewDeviceId("");
+    if (!session?.user?.id || !newDeviceId.trim()) return;
+    try {
+      const res = await fetch('/api/add-device', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userid: session.user.id, deviceid: newDeviceId.trim() }),
+      });
+      if (res.ok) {
+        setDeviceId(newDeviceId.trim());
+        setShowDeviceModal(false);
+        setNewDeviceId("");
+      } else {
+        // Optionally handle error
+        console.log('Failed to add device:', res.statusText);
+      }
+    } catch (err) {
+      console.log('Failed to add device:', err);
+    }
   };
 
   if (status === 'loading') return <div>Loading...</div>;
