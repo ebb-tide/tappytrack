@@ -1,6 +1,6 @@
 'use client';
 import { useSession, signIn, signOut } from 'next-auth/react';
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { RefreshCw } from "lucide-react"
@@ -32,6 +32,9 @@ export default function Dashboard() {
   const [newCardId, setNewCardId] = useState("");
   const [spotifyUrl, setSpotifyUrl] = useState("");
   const [cards, setCards] = useState<Card[]>([]);
+  const [showDeviceModal, setShowDeviceModal] = useState(false);
+  const [deviceId, setDeviceId] = useState("");
+  const deviceInputRef = useRef<HTMLInputElement>(null);
 
   // Refactored fetch logic
   const fetchCards = async () => {
@@ -89,6 +92,13 @@ export default function Dashboard() {
     }
   }
 
+  const handleDeviceSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // TODO: handle device ID submission logic here
+    setShowDeviceModal(false);
+    setDeviceId("");
+  };
+
   if (status === 'loading') return <div>Loading...</div>;
   if (!session) {
     signIn('spotify');
@@ -96,7 +106,29 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white relative">
+      {/* Device Modal Overlay */}
+      {showDeviceModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/30">
+          <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-sm border flex flex-col items-center">
+            <h2 className="text-xl font-semibold mb-4">Enter Device ID</h2>
+            <form onSubmit={handleDeviceSubmit} className="w-full flex flex-col gap-4">
+              <Input
+                ref={deviceInputRef}
+                value={deviceId}
+                onChange={e => setDeviceId(e.target.value)}
+                placeholder="Device ID"
+                className="w-full"
+                autoFocus
+              />
+              <Button type="submit" className="w-full">Submit</Button>
+              /* <Button type="button" variant="ghost" className="w-full" onClick={() => setShowDeviceModal(false)}>
+                Cancel
+              </Button> */
+            </form>
+          </div>
+        </div>
+      )}
       <header className="border-b">
         <div className="container flex h-16 items-center justify-between px-4">
           <h1 className="text-xl font-semibold">isla&apos;s spotify player</h1>
@@ -112,7 +144,7 @@ export default function Dashboard() {
               </SheetTrigger>
               <SheetContent>
                 <nav className="grid gap-4 py-4">
-                  <Button variant="ghost" className="justify-start">
+                  <Button variant="ghost" className="justify-start" onClick={() => setShowDeviceModal(true)}>
                     Connect new device
                   </Button>
                   <Button variant="ghost" className="justify-start" onClick={() => signOut({ callbackUrl: '/' })}>
