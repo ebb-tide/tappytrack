@@ -6,6 +6,12 @@ Parameters:
   InternalSecret:
     Type: String
     NoEcho: true
+  SpotifyClientId:
+    Type: String
+    NoEcho: true
+  SpotifyClientSecret:
+    Type: String
+    NoEcho: true
 
 Resources:
   UsersTable:
@@ -185,9 +191,35 @@ Resources:
           USERS_TABLE: tappyusers
           DEVICES_TABLE: tappydevices
           INTERNAL_SECRET: !Ref InternalSecret
+          SPOTIFY_CLIENT_ID: !Ref SpotifyClientId
+          SPOTIFY_CLIENT_SECRET: !Ref SpotifyClientSecret
       Events:
         Api:
           Type: Api
           Properties:
             Path: /tap
             Method: post
+
+  GetPlayersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: getPlayers
+      Handler: index.handler
+      Runtime: nodejs18.x
+      CodeUri: lambdas/getPlayers/
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - DynamoDBCrudPolicy:
+            TableName: tappyusers
+      Environment:
+        Variables:
+          USERS_TABLE: tappyusers
+          INTERNAL_SECRET: !Ref InternalSecret
+          SPOTIFY_CLIENT_ID: !Ref SpotifyClientId
+          SPOTIFY_CLIENT_SECRET: !Ref SpotifyClientSecret
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /players
+            Method: get

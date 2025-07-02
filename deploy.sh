@@ -10,4 +10,6 @@ sam deploy \
   --template-file aws/template.yaml \
   --stack-name tappytrack \
   --parameter-overrides \
-    InternalSecret="$INTERNAL_SECRET" 
+    InternalSecret="$INTERNAL_SECRET" \
+    SpotifyClientId="$SPOTIFY_CLIENT_ID" \
+    SpotifyClientSecret="$SPOTIFY_CLIENT_SECRET" 
