@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Kids Spot",
-  description: "A fun and safe music app for kids",
+  title: "TappyTrack",
+  description: "A spotify player for kids",
 };
 
 export default function RootLayout({
