@@ -163,6 +163,8 @@ Resources:
         Variables:
           CARDS_TABLE: tappycards
           INTERNAL_SECRET: !Ref InternalSecret
+          SPOTIFY_CLIENT_ID: !Ref SpotifyClientId
+          SPOTIFY_CLIENT_SECRET: !Ref SpotifyClientSecret
       Events:
         Api:
           Type: Api

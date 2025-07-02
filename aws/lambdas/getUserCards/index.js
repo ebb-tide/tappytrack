@@ -66,7 +66,9 @@ exports.handler = async (event) => {
     }));
     cards = (cardsResult.Items || []).map(card => ({
       id: card.cardID || card.id,
-      spotifyUrl: card.spotifyURL || card.spotifyUrl
+      spotifyUrl: card.spotifyURL || card.spotifyUrl,
+      trackName: card.trackName || "",
+      artistName: card.artistName || ""
     }));
   } catch (err) {
     console.error('DynamoDB query cards error:', err);

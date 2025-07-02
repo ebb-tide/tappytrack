@@ -1,7 +1,7 @@
 {
-  "name": "tapCard",
+  "name": "tapcard",
   "version": "1.0.0",
-  "description": "Lambda for tapCard with Spotify integration",
+  "description": "Lambda for tapcard",
   "main": "index.js",
   "dependencies": {
     "node-fetch": "^2.6.7"
