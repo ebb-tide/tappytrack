@@ -25,6 +25,8 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 interface Card {
   id: string
   spotifyUrl: string
+  trackName?: string
+  artistName?: string
 }
 
 export default function Dashboard() {
@@ -183,7 +185,7 @@ export default function Dashboard() {
       </header>
 
       <div className="flex flex-col items-center justify-center">
-        <main className="w-full max-w-2xl px-4 py-8 flex flex-col items-center justify-center">
+        <main className="w-full max-w-4xl px-4 py-8 flex flex-col items-center justify-center">
           <div className="mb-8 p-6 border rounded-lg bg-gray-50 w-full">
             <div className="mb-4">
               <div className="flex flex-col gap-6">
@@ -191,7 +193,7 @@ export default function Dashboard() {
                   <Label htmlFor="cardid">CardID</Label>
                   <Input
                     id="cardid"
-                    placeholder="Enter value or flash a new card on your device to capture the ID"
+                    placeholder="Enter value or tap a new card on your device to capture the ID"
                     value={newCardId || ""}
                     onChange={(e) => setNewCardId(e.target.value)}
                     className="w-full"
@@ -229,11 +231,13 @@ export default function Dashboard() {
               <span className="text-sm text-muted-foreground">Device ID: <span className="font-mono text-base text-black">{deviceid}</span></span>
             </div>
           )}
-          <div className="rounded-md border w-full">
+          <div className="rounded-md border w-full overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[200px]">Card ID</TableHead>
+                  <TableHead className="w-[180px]">Card ID</TableHead>
+                  <TableHead className="w-[220px]">Track Name</TableHead>
+                  <TableHead className="w-[180px]">Artist Name</TableHead>
                   <TableHead>Spotify URL</TableHead>
                   <TableHead className="w-[100px]"></TableHead>
                 </TableRow>
@@ -242,6 +246,8 @@ export default function Dashboard() {
                 {cards.map((card) => (
                   <TableRow key={card.id}>
                     <TableCell className="font-mono">{card.id}</TableCell>
+                    <TableCell className="truncate max-w-[220px]">{card.trackName || ""}</TableCell>
+                    <TableCell className="truncate max-w-[180px]">{card.artistName || ""}</TableCell>
                     <TableCell className="font-mono text-sm truncate max-w-[400px]">{card.spotifyUrl}</TableCell>
                     <TableCell>
                       <Button
