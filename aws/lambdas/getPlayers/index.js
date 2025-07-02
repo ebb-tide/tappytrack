@@ -10,16 +10,15 @@ exports.handler = async (event) => {
 //     return { statusCode: 403, body: "Forbidden" };
 //   }
 
-  let data;
-  try {
-    data = JSON.parse(event.body);
-  } catch {
-    return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON" }) };
-  }
-  const { userid } = data;
+  const userid = event.queryStringParameters && event.queryStringParameters.userid;
   if (!userid) {
-    return { statusCode: 400, body: JSON.stringify({ error: "Missing userid" }) };
+    console.log('Missing userid parameter');
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ error: 'Missing userid parameter' })
+    };
   }
+
   const client = new DynamoDBClient();
   const ddbDocClient = DynamoDBDocumentClient.from(client);
 
@@ -73,20 +72,20 @@ exports.handler = async (event) => {
     }
   }
 
-  // Fetch available devices from Spotify
-  let devices = [];
+  // Fetch available players from Spotify
+  let players = [];
   if (accessToken) {
     try {
       const resp = await fetch('https://api.spotify.com/v1/me/player/devices', {
         headers: { 'Authorization': `Bearer ${accessToken}` }
       });
-      if (!resp.ok) throw new Error('Spotify devices fetch failed');
+      if (!resp.ok) throw new Error('Spotify players fetch failed');
       const data = await resp.json();
-      devices = data.devices || [];
+      players = data.devices || [];
     } catch (err) {
-      return { statusCode: 500, body: JSON.stringify({ error: 'Spotify devices fetch failed: ' + err.message }) };
+      return { statusCode: 500, body: JSON.stringify({ error: 'Spotify players fetch failed: ' + err.message }) };
     }
   }
 
-  return { statusCode: 200, body: JSON.stringify({ message: "players for user", devices }) };
+  return { statusCode: 200, body: JSON.stringify({ message: "players for user", players }) };
 };

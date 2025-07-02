@@ -39,6 +39,8 @@ export default function Dashboard() {
   const [deviceid, setDeviceId] = useState("");
   const deviceInputRef = useRef<HTMLInputElement>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [spotifyPlayers, setSpotifyPlayers] = useState<{id: string, name: string}[]>([]);
+  const [selectedSpotifyPlayer, setSelectedSpotifyPlayer] = useState<string>("");
 
   // Refactored fetch logic
   const fetchCards = async () => {
@@ -64,8 +66,25 @@ export default function Dashboard() {
     }
   };
 
+  // Fetch Spotify players for the user
+  const fetchSpotifyPlayers = async () => {
+    if (session?.user?.id) {
+      try {
+        const res = await fetch(`/api/get-players?userid=${session.user.id}`);
+        const data = await res.json();
+        console.log("Fetched Spotify players:", data);
+        if (Array.isArray(data.players)) {
+          setSpotifyPlayers(data.players.map((d: any) => ({ id: d.id, name: d.name })));
+        }
+      } catch (err) {
+        setSpotifyPlayers([]);
+      }
+    }
+  };
+
   useEffect(() => {
     fetchCards();
+    fetchSpotifyPlayers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, session]);
 
@@ -123,6 +142,22 @@ export default function Dashboard() {
       }
     } catch (err) {
       console.log('Failed to add device:', err);
+    }
+  };
+
+  // Save selected Spotify player to user profile
+  const handleSetSpotifyPlayer = async () => {
+    if (!session?.user?.id || !selectedSpotifyPlayer) return;
+    const player = spotifyPlayers.find(p => p.id === selectedSpotifyPlayer);
+    if (!player) return;
+    try {
+      await fetch("/api/set-spotify-player", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userid: session.user.id, spotifyPlayerId: player.id, spotifyPlayerName: player.name })
+      });
+    } catch (err) {
+      // Optionally handle error
     }
   };
 
@@ -227,10 +262,47 @@ export default function Dashboard() {
           </div>
           {/* Device ID display */}
           {deviceid && (
-            <div className="mb-4 w-full flex items-center justify-center">
-              <span className="text-sm text-muted-foreground">Device ID: <span className="font-mono text-base text-black">{deviceid}</span></span>
+            <div className="mb-8 p-6 border rounded-lg bg-gray-50 w-full flex flex-col gap-4">
+              <div className="flex flex-col gap-3">
+                <Label htmlFor="deviceid">Device ID</Label>
+                <div className="flex gap-2 items-center">
+                  <Input
+                    id="deviceid"
+                    value={deviceid || ""}
+                    readOnly
+                    className="w-full bg-gray-100 cursor-default"
+                  />
+                  <Button
+                    onClick={() => setShowDeviceModal(true)}
+                  >
+                    Connect New Device
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
+
+          {/* Spotify Device Dropdown Section */}
+          <div className="mb-8 p-6 border rounded-lg bg-gray-50 w-full flex flex-col gap-4">
+            <div className="flex flex-col gap-3">
+              <Label htmlFor="spotify-device">Select Spotify Player</Label>
+              <div className="flex gap-2 items-center">
+                <select
+                  id="spotify-device"
+                  className="w-full bg-gray-100 border rounded px-3 py-2"
+                  value={selectedSpotifyPlayer}
+                  onChange={e => setSelectedSpotifyPlayer(e.target.value)}
+                >
+                  <option value="">Select a Spotify player...</option>
+                  {spotifyPlayers.map((player) => (
+                    <option key={player.id} value={player.id}>{player.name}</option>
+                  ))}
+                </select>
+                <Button onClick={handleSetSpotifyPlayer} disabled={!selectedSpotifyPlayer}>Set Spotify Player</Button>
+              </div>
+            </div>
+          </div>
+
           <div className="rounded-md border w-full overflow-x-auto">
             <Table>
               <TableHeader>

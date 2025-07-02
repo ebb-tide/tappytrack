@@ -5,8 +5,6 @@ const USERS_TABLE = process.env.USERS_TABLE;
 const CARDS_TABLE = process.env.CARDS_TABLE;
 
 exports.handler = async (event) => {
-  console.log('getUserCards Lambda invoked');
-  console.log('Event:', JSON.stringify(event));
 
   const secret = event.headers["x-internal"];
   if (secret !== process.env.INTERNAL_SECRET) {
