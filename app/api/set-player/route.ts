@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-internal': process.env.INTERNAL_SECRET || '',
+      'x-internal': process.env.LAMBDA_SECRET || '',
     },
     body: JSON.stringify({ userid, spotifyPlayerId, spotifyPlayerName }),
   });

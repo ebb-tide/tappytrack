@@ -13,6 +13,8 @@ declare module "next-auth" {
       name?: string | null;
       email?: string | null;
       image?: string | null;
+      playerid?: string; 
+      playerName?: string;
     }
   }
 }
@@ -51,6 +53,7 @@ export default function Dashboard() {
         setCards(data.cards || []);
         setNewCardId(data.lastCard || "");
         setDeviceId(data.deviceid || "");
+        setSelectedSpotifyPlayer(data.player?.id || "");
         if (!data.deviceid) {
           setShowDeviceModal(true);
           if (deviceInputRef.current) {
@@ -72,7 +75,6 @@ export default function Dashboard() {
       try {
         const res = await fetch(`/api/get-players?userid=${session.user.id}`);
         const data = await res.json();
-        console.log("Fetched Spotify players:", data);
         if (Array.isArray(data.players)) {
           setSpotifyPlayers(data.players.map((d: any) => ({ id: d.id, name: d.name })));
         }
@@ -151,7 +153,7 @@ export default function Dashboard() {
     const player = spotifyPlayers.find(p => p.id === selectedSpotifyPlayer);
     if (!player) return;
     try {
-      await fetch("/api/set-spotify-player", {
+      await fetch("/api/set-player", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userid: session.user.id, spotifyPlayerId: player.id, spotifyPlayerName: player.name })

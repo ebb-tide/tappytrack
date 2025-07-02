@@ -41,6 +41,7 @@ exports.handler = async (event) => {
   }
 
   const deviceid = user.deviceid
+  const player = {id:user.playerid || "", name:user.playerName || ""};
 
   // 2. Check last card timestamp
   let lastCard = null;
@@ -75,6 +76,6 @@ exports.handler = async (event) => {
 
   return {
     statusCode: 200,
-    body: JSON.stringify({ cards, lastCard, deviceid })
+    body: JSON.stringify({ cards, lastCard, deviceid, player })
   };
 };

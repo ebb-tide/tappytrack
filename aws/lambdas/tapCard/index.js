@@ -128,7 +128,7 @@ exports.handler = async (event) => {
     try {
       const spotifyURL = card.spotifyURL || card.spotifyUrl;
       const uri = extractSpotifyTrackId(spotifyURL)
-      const playResp = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${PLAYER_ID}`,
+      const playResp = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${user.playerid || PLAYER_ID}`,
         {
           method: 'PUT',
           headers: {

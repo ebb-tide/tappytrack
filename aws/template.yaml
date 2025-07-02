@@ -225,3 +225,25 @@ Resources:
           Properties:
             Path: /players
             Method: get
+
+  SetPlayerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: setPlayer
+      Handler: index.handler
+      Runtime: nodejs18.x
+      CodeUri: lambdas/setPlayer/
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - DynamoDBCrudPolicy:
+            TableName: tappyusers
+      Environment:
+        Variables:
+          USERS_TABLE: tappyusers
+          INTERNAL_SECRET: !Ref InternalSecret
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /players
+            Method: post

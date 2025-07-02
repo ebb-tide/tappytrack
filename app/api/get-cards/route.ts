@@ -27,7 +27,8 @@ export async function GET(req: NextRequest) {
   const cards = response.cards || [];
   const lastCard= response.lastCard || null;
   const deviceid= response.deviceid || null;
+  const player= response.player || null;
 
-  return NextResponse.json({ cards, lastCard, deviceid });
+  return NextResponse.json({ cards, lastCard, deviceid, player });
 }
 
