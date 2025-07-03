@@ -2,22 +2,19 @@
 
 import { signIn, signOut, useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button"
-import { useEffect } from "react";
 
 
 export default function Home() {
-  const { data: session, status } = useSession();
+  const { data: session } = useSession();
 
-
-if (session) {
-  if (typeof window !== 'undefined') {
-    window.location.href = '/dashboard';
+  if (session) {
+    if (typeof window !== 'undefined') {
+      window.location.href = '/dashboard';
+    }
+    return null;
   }
-  return null;
-}
 
   return (
-
     <div className="flex flex-col items-center justify-center min-h-screen bg-white px-4">
       <div className="text-center space-y-6 max-w-md">
         <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">tappytrack</h1>

@@ -61,7 +61,7 @@ export default function Dashboard() {
           }
         }
       } catch (err) {
-        console.log("Error fetching cards:", err);
+        console.error("Error fetching cards:", err);
         setCards([]);
         setNewCardId("");
         setDeviceId("");
@@ -76,9 +76,10 @@ export default function Dashboard() {
         const res = await fetch(`/api/get-players?userid=${session.user.id}`);
         const data = await res.json();
         if (Array.isArray(data.players)) {
-          setSpotifyPlayers(data.players.map((d: any) => ({ id: d.id, name: d.name })));
+          setSpotifyPlayers(data.players.map((d: { id: string; name: string }) => ({ id: d.id, name: d.name })));
         }
       } catch (err) {
+        console.error("Error fetching Spotify players:", err);
         setSpotifyPlayers([]);
       }
     }
@@ -143,7 +144,7 @@ export default function Dashboard() {
         console.log('Failed to add device:', res.statusText);
       }
     } catch (err) {
-      console.log('Failed to add device:', err);
+      console.error('Failed to add device:', err);
     }
   };
 
@@ -159,7 +160,7 @@ export default function Dashboard() {
         body: JSON.stringify({ userid: session.user.id, spotifyPlayerId: player.id, spotifyPlayerName: player.name })
       });
     } catch (err) {
-      // Optionally handle error
+      console.error("Failed to set Spotify player:", err)
     }
   };
 
