@@ -2,19 +2,28 @@
 
 import { signIn, signOut, useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button"
+import { useEffect } from "react";
 
 
 export default function Home() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+
+
+if (session) {
+  if (typeof window !== 'undefined') {
+    window.location.href = '/dashboard';
+  }
+  return null;
+}
 
   return (
 
     <div className="flex flex-col items-center justify-center min-h-screen bg-white px-4">
       <div className="text-center space-y-6 max-w-md">
-        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">isla&apos;s spotify player</h1>
-        {/* <p className="text-muted-foreground">
-          whee!
-        </p> */}
+        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">tappytrack</h1>
+        <p className="text-muted-foreground">
+          a spotify player kids can run
+        </p>
         {!session ? (
           <Button size="lg" className="mt-2"
             onClick={() => signIn('spotify',{ callbackUrl: '/dashboard' })}>
