@@ -21,21 +21,10 @@ export default function Home() {
         <p className="text-muted-foreground">
           a spotify player kids can run
         </p>
-        {!session ? (
           <Button size="lg" className="mt-2"
             onClick={() => signIn('spotify',{ callbackUrl: '/dashboard' })}>
             Sign in with Spotify
           </Button>
-        ) : (
-          <div>
-            <p className="mb-4">Signed in as {session.user?.name}</p>
-            <Button size="lg" className="mt-2"
-              onClick={() => signOut()}
-            >
-              Sign Out
-            </Button>
-          </div>
-        )}
       </div>
     </div>
   );
