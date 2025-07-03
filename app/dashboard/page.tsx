@@ -176,13 +176,13 @@ export default function Dashboard() {
       {showDeviceModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/30">
           <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-sm border flex flex-col items-center">
-            <h2 className="text-xl font-semibold mb-4">Enter Device ID</h2>
+            <h2 className="text-xl font-semibold mb-4">Link a new tappytrack NFC reader to your account</h2>
             <form onSubmit={handleNewDeviceSubmit} className="w-full flex flex-col gap-4">
               <Input
                 ref={deviceInputRef}
                 value={newDeviceId}
                 onChange={e => setNewDeviceId(e.target.value)}
-                placeholder="Device ID"
+                placeholder="Enter Device ID"
                 className="w-full"
                 autoFocus
               />
@@ -196,7 +196,7 @@ export default function Dashboard() {
       )}
       <header className="border-b">
         <div className="container flex h-16 items-center justify-between px-4">
-          <h1 className="text-xl font-semibold">isla&apos;s spotify player</h1>
+          <h1 className="text-xl font-semibold">tappytrack!</h1>
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" className="rounded-full" aria-label="User account">
               <User className="h-5 w-5" />
