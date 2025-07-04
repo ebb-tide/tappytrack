@@ -1,8 +1,8 @@
 "use client"
 // https://ui.shadcn.com/colors
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { useSession, signIn, signOut } from 'next-auth/react';
-import { Music, Nfc, Plus, Settings, LogOut, Smartphone, Trash2, Edit } from "lucide-react"
+import { Music, Nfc, Plus, LogOut, Smartphone, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -40,10 +40,10 @@ export default function Dashboard() {
     const [newCardId, setNewCardId] = useState("");
     const [spotifyUrl, setSpotifyUrl] = useState("");
     const [newDeviceId, setNewDeviceId] = useState("");
-    const deviceInputRef = useRef<HTMLInputElement>(null);
+    // const deviceInputRef = useRef<HTMLInputElement>(null);
     const [selectedSpotifyPlayer, setSelectedSpotifyPlayer] = useState<string>("");
 
-    const [_, setShowDeviceModal] = useState(false);  // todo add modal for device ID input
+    // const [_, setShowDeviceModal] = useState(false);  // todo add modal for device ID input
 
 
 
@@ -56,12 +56,12 @@ export default function Dashboard() {
                 setLastTappedCardId(data.lastCard || "(tap a card to see the ID)");
                 setDeviceId(data.deviceid || "");
                 setCurrentSpotifyPlayer(data.player?.name || "");
-                if (!data.deviceid) {
-                    setShowDeviceModal(true);
-                    if (deviceInputRef.current) {
-                        deviceInputRef.current.focus();
-                    }
-                }
+                // if (!data.deviceid) {
+                //     setShowDeviceModal(true);
+                //     if (deviceInputRef.current) {
+                //         deviceInputRef.current.focus();
+                //     }
+                // }
             } catch (err) {
                 console.error("Error fetching cards:", err);
                 setCards([]);
@@ -138,7 +138,7 @@ export default function Dashboard() {
             });
             if (res.ok) {
                 setDeviceId(newDeviceId.trim());
-                setShowDeviceModal(false);
+                // setShowDeviceModal(false);
                 setNewDeviceId("");
                 fetchState();
             } else {
