@@ -4,6 +4,9 @@ import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { RefreshCw } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+
 
 // Extend the session user type to include 'id'
 declare module "next-auth" {
@@ -13,16 +16,10 @@ declare module "next-auth" {
       name?: string | null;
       email?: string | null;
       image?: string | null;
-      playerid?: string; 
-      playerName?: string;
     }
   }
 }
 
-import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Menu, User } from "lucide-react"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 
 interface Card {
   id: string
@@ -40,7 +37,6 @@ export default function Dashboard() {
   const [newDeviceId, setNewDeviceId] = useState("");
   const [deviceid, setDeviceId] = useState("");
   const deviceInputRef = useRef<HTMLInputElement>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
   const [spotifyPlayers, setSpotifyPlayers] = useState<{id: string, name: string}[]>([]);
   const [selectedSpotifyPlayer, setSelectedSpotifyPlayer] = useState<string>("");
 
@@ -197,27 +193,13 @@ export default function Dashboard() {
       <header className="border-b">
         <div className="container flex h-16 items-center justify-between px-4">
           <h1 className="text-xl font-semibold">tappytrack!</h1>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" className="rounded-full" aria-label="User account">
-              <User className="h-5 w-5" />
-            </Button>
-            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full" aria-label="Menu" onClick={() => setSheetOpen(true)}>
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent>
-                <nav className="grid gap-4 py-4">
-                  <Button variant="ghost" className="justify-start" onClick={() => {setShowDeviceModal(true); setSheetOpen(false);}}>
-                    Connect new device
-                  </Button>
-                  <Button variant="ghost" className="justify-start" onClick={() => signOut({ callbackUrl: '/' })}>
-                    Logout
-                  </Button>
-                </nav>
-              </SheetContent>
-            </Sheet>
+          <div>
+            <button
+              className="text-sm text-black hover:text-red-600 font-medium underline bg-transparent border-0 p-0 cursor-pointer"
+              onClick={() => signOut({ callbackUrl: '/' })}
+            >
+              Logout
+            </button>
           </div>
         </div>
       </header>
