@@ -1,328 +1,416 @@
-'use client';
-import { useSession, signIn, signOut } from 'next-auth/react';
+"use client"
+// https://ui.shadcn.com/colors
 import { useState, useEffect, useRef } from "react"
+import { useSession, signIn, signOut } from 'next-auth/react';
+import { Music, Nfc, Plus, Settings, LogOut, Smartphone, Trash2, Edit } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { RefreshCw } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
 
-
-// Extend the session user type to include 'id'
 declare module "next-auth" {
-  interface Session {
-    user?: {
-      id?: string;
-      name?: string | null;
-      email?: string | null;
-      image?: string | null;
+    interface Session {
+        user?: {
+            id?: string;
+            name?: string | null;
+            email?: string | null;
+            image?: string | null;
+        }
     }
-  }
 }
 
-
 interface Card {
-  id: string
-  spotifyUrl: string
-  trackName?: string
-  artistName?: string
+    id: string
+    spotifyUrl: string
+    trackName?: string
+    artistName?: string
 }
 
 export default function Dashboard() {
-  const { data: session, status } = useSession();
-  const [newCardId, setNewCardId] = useState("");
-  const [spotifyUrl, setSpotifyUrl] = useState("");
-  const [cards, setCards] = useState<Card[]>([]);
-  const [showDeviceModal, setShowDeviceModal] = useState(false);
-  const [newDeviceId, setNewDeviceId] = useState("");
-  const [deviceid, setDeviceId] = useState("");
-  const deviceInputRef = useRef<HTMLInputElement>(null);
-  const [spotifyPlayers, setSpotifyPlayers] = useState<{id: string, name: string}[]>([]);
-  const [selectedSpotifyPlayer, setSelectedSpotifyPlayer] = useState<string>("");
+    const { data: session, status } = useSession();
+    const [lastTappedCardId, setLastTappedCardId] = useState("(tap a card to see the ID)");
+    const [cards, setCards] = useState<Card[]>([]);
+    const [deviceid, setDeviceId] = useState("");
+    const [spotifyPlayers, setSpotifyPlayers] = useState<{ id: string, name: string }[]>([]);
+    const [currentSpotifyPlayer, setCurrentSpotifyPlayer] = useState<string>("");
 
-  // Refactored fetch logic
-  const fetchCards = async () => {
-    if (status === 'authenticated' && session?.user?.id) {
-      try {
-        const res = await fetch(`/api/get-cards?userid=${session.user.id}`);
-        const data = await res.json();
-        setCards(data.cards || []);
-        setNewCardId(data.lastCard || "");
-        setDeviceId(data.deviceid || "");
-        setSelectedSpotifyPlayer(data.player?.id || "");
-        if (!data.deviceid) {
-          setShowDeviceModal(true);
-          if (deviceInputRef.current) {
-            deviceInputRef.current.focus();
-          }
+    const [newCardId, setNewCardId] = useState("");
+    const [spotifyUrl, setSpotifyUrl] = useState("");
+    const [newDeviceId, setNewDeviceId] = useState("");
+    const deviceInputRef = useRef<HTMLInputElement>(null);
+    const [selectedSpotifyPlayer, setSelectedSpotifyPlayer] = useState<string>("");
+
+    const [_, setShowDeviceModal] = useState(false);  // todo add modal for device ID input
+
+
+
+    const fetchState = async () => {
+        if (status === 'authenticated' && session?.user?.id) {
+            try {
+                const res = await fetch(`/api/get-cards?userid=${session.user.id}`);
+                const data = await res.json();
+                setCards(data.cards || []);
+                setLastTappedCardId(data.lastCard || "(tap a card to see the ID)");
+                setDeviceId(data.deviceid || "");
+                setCurrentSpotifyPlayer(data.player?.name || "");
+                if (!data.deviceid) {
+                    setShowDeviceModal(true);
+                    if (deviceInputRef.current) {
+                        deviceInputRef.current.focus();
+                    }
+                }
+            } catch (err) {
+                console.error("Error fetching cards:", err);
+                setCards([]);
+                setLastTappedCardId("(tap a card to see the ID)");
+                setDeviceId("");
+            }
         }
-      } catch (err) {
-        console.error("Error fetching cards:", err);
-        setCards([]);
-        setNewCardId("");
-        setDeviceId("");
-      }
-    }
-  };
+    };
 
-  // Fetch Spotify players for the user
-  const fetchSpotifyPlayers = async () => {
-    if (session?.user?.id) {
-      try {
-        const res = await fetch(`/api/get-players?userid=${session.user.id}`);
-        const data = await res.json();
-        if (Array.isArray(data.players)) {
-          setSpotifyPlayers(data.players.map((d: { id: string; name: string }) => ({ id: d.id, name: d.name })));
+    // Fetch Spotify players for the user
+    const fetchSpotifyPlayers = async () => {
+        if (session?.user?.id) {
+            try {
+                const res = await fetch(`/api/get-players?userid=${session.user.id}`);
+                const data = await res.json();
+                if (Array.isArray(data.players)) {
+                    setSpotifyPlayers(data.players.map((d: { id: string; name: string }) => ({ id: d.id, name: d.name })));
+                }
+            } catch (err) {
+                console.error("Error fetching Spotify players:", err);
+                setSpotifyPlayers([]);
+            }
         }
-      } catch (err) {
-        console.error("Error fetching Spotify players:", err);
-        setSpotifyPlayers([]);
-      }
+    };
+
+    useEffect(() => {
+        fetchState();
+        fetchSpotifyPlayers();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [status, session]);
+
+    const handleAddCard = async () => {
+        if (!newCardId || spotifyUrl.trim() === "" || !session?.user?.id) return;
+        const res = await fetch('/api/add-card', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                userid: session.user.id,
+                cardID: newCardId,
+                spotifyURL: spotifyUrl,
+            }),
+        });
+        if (res.ok) {
+            setSpotifyUrl("");
+            setNewCardId("");
+            fetchState();
+        } else {
+            console.log("Failed to add card:", res.statusText);
+        }
+    };
+
+    const handleDeleteCard = async (id: string) => {
+        if (!session?.user?.id) return;
+        const res = await fetch('/api/delete-card', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userid: session.user.id, cardID: id }),
+        });
+        if (res.ok) {
+            fetchState();
+        } else {
+            console.log('Failed to delete card:', res.statusText);
+        }
     }
-  };
 
-  useEffect(() => {
-    fetchCards();
-    fetchSpotifyPlayers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, session]);
+    const handleNewDeviceSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!session?.user?.id || !newDeviceId.trim()) return;
+        try {
+            const res = await fetch('/api/add-device', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userid: session.user.id, deviceid: newDeviceId.trim() }),
+            });
+            if (res.ok) {
+                setDeviceId(newDeviceId.trim());
+                setShowDeviceModal(false);
+                setNewDeviceId("");
+                fetchState();
+            } else {
+                // Optionally handle error
+                console.log('Failed to add device:', res.statusText);
+            }
+        } catch (err) {
+            console.error('Failed to add device:', err);
+        }
+    };
 
-  const handleAddCard = async () => {
-    if (!newCardId || spotifyUrl.trim() === "" || !session?.user?.id) return;
-    const res = await fetch('/api/add-card', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userid: session.user.id,
-        cardID: newCardId,
-        spotifyURL: spotifyUrl,
-      }),
-    });
+    // Save selected Spotify player to user profile
+    const handleSetSpotifyPlayer = async () => {
+        if (!session?.user?.id || !selectedSpotifyPlayer) return;
+        const player = spotifyPlayers.find(p => p.id === selectedSpotifyPlayer);
+        if (!player) return;
+        try {
+            await fetch("/api/set-player", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userid: session.user.id, spotifyPlayerId: player.id, spotifyPlayerName: player.name })
+            });
+            fetchState();
+        } catch (err) {
+            console.error("Failed to set Spotify player:", err)
+        }
+    };
 
-    if (res.ok) {
-      setCards([...cards, { id: newCardId, spotifyUrl }]);
-      setSpotifyUrl("");
-      setNewCardId("");
-    } else {
-      console.log("Failed to add card:", res.statusText);
+    if (status === 'loading') return <div>Loading...</div>;
+    if (!session) {
+        signIn('spotify');
+        return <div>Redirecting to login...</div>;
     }
-  };
 
-  const handleDeleteCard = async (id: string) => {
-    if (!session?.user?.id) return;
-    const res = await fetch('/api/delete-card', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userid: session.user.id, cardID: id }),
-    });
-    if (res.ok) {
-      setCards(cards.filter((card) => card.id !== id));
-    } else {
-      console.log('Failed to delete card:', res.statusText);
-    }
-  }
 
-  const handleNewDeviceSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!session?.user?.id || !newDeviceId.trim()) return;
-    try {
-      const res = await fetch('/api/add-device', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userid: session.user.id, deviceid: newDeviceId.trim() }),
-      });
-      if (res.ok) {
-        setDeviceId(newDeviceId.trim());
-        setShowDeviceModal(false);
-        setNewDeviceId("");
-      } else {
-        // Optionally handle error
-        console.log('Failed to add device:', res.statusText);
-      }
-    } catch (err) {
-      console.error('Failed to add device:', err);
-    }
-  };
+    return (
+        <div className="min-h-screen">
+            {/* Header */}
+            <header className="bg-emerald-300 text-emerald-800 p-4 shadow-lg">
+                <div className="bg-emerald-300 flex items-center justify-between">
+                    <div className=" bg-emerald-250 flex items-center gap-3">
+                        <div className="bg-emerald-300 p-2 rounded-full">
+                            <Music className="h-6 w-6" />
+                        </div>
+                        <h1 className="text-2xl font-bold tracking-wide">tappytrack</h1>
+                    </div>
+                    <Button
+                        variant="ghost" className="text-emerald-800 hover:bg-emerald-300"
+                        onClick={() => signOut({ callbackUrl: '/' })}
+                    >
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Logout
+                    </Button>
+                </div>
+            </header>
 
-  // Save selected Spotify player to user profile
-  const handleSetSpotifyPlayer = async () => {
-    if (!session?.user?.id || !selectedSpotifyPlayer) return;
-    const player = spotifyPlayers.find(p => p.id === selectedSpotifyPlayer);
-    if (!player) return;
-    try {
-      await fetch("/api/set-player", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userid: session.user.id, spotifyPlayerId: player.id, spotifyPlayerName: player.name })
-      });
-    } catch (err) {
-      console.error("Failed to set Spotify player:", err)
-    }
-  };
+            <div className="flex">
+                {/* Left Sidebar */}
+                <aside className="w-80 bg-white border-r border-emerald-200 p-6 min-h-[calc(100vh-80px)]">
+                    <div className="space-y-6">
+                        {/* Device Settings */}
 
-  if (status === 'loading') return <div>Loading...</div>;
-  if (!session) {
-    signIn('spotify');
-    return <div>Redirecting to login...</div>;
-  }
+                        <Card className="border-emerald-200 shadow-mdv rounded-md p-0">
+                            <CardHeader className="bg-emerald-100 p-4 rounded-t-md pb-3">
+                                <CardTitle className="flex items-center gap-2 text-emerald-800">
+                                    <Smartphone className="h-5 w-5" />
+                                    Select Device
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div>
+                                    <Label className="text-sm font-medium text-gray-700">Current Device ID</Label>
+                                    <div className="mt-1 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                                        <code className="text-emerald-700 font-mono text-sm">{deviceid}</code>
+                                    </div>
+                                </div>
 
-  return (
-    <div className="min-h-screen bg-white relative">
-      {/* Device Modal Overlay */}
-      {showDeviceModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/30">
-          <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-sm border flex flex-col items-center">
-            <h2 className="text-xl font-semibold mb-4">Link a new tappytrack NFC reader to your account</h2>
-            <form onSubmit={handleNewDeviceSubmit} className="w-full flex flex-col gap-4">
-              <Input
-                ref={deviceInputRef}
-                value={newDeviceId}
-                onChange={e => setNewDeviceId(e.target.value)}
-                placeholder="Enter Device ID"
-                className="w-full"
-                autoFocus
-              />
-              <Button type="submit" className="w-full">Submit</Button>
-              <Button type="button" variant="ghost" className="w-full" onClick={() => setShowDeviceModal(false)}>
-                Cancel
-              </Button> 
-            </form>
-          </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="new-device-id" className="text-sm font-medium text-gray-700">
+                                        New Device ID
+                                    </Label>
+                                    <div className="flex gap-2">
+                                        <Input
+                                            id="new-device-id"
+                                            value={newDeviceId}
+                                            onChange={(e) => setNewDeviceId(e.target.value)}
+                                            placeholder="Enter device ID"
+                                            className="border-emerald-200 focus:border-emerald-400"
+                                        />
+                                        <Button onClick={handleNewDeviceSubmit} className="bg-emerald-300 hover:bg-emerald-700">
+                                            Set
+                                        </Button>
+                                    </div>
+                                    < div className="flex gap-5"> </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Spotify Player Selection */}
+                        <Card className="border-emerald-300 shadow-mdv rounded-md p-0">
+                            <CardHeader className="bg-emerald-100 pb-3 p-4 rounded-t-md">
+                                <CardTitle className="flex items-center gap-2 text-emerald-800">
+                                    <Smartphone className="h-5 w-5" />
+                                    Spotify Player
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div>
+                                    <Label className="text-sm font-medium text-gray-700">Current Spotify Player</Label>
+                                    <div className="mt-1 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                                        <code className="text-emerald-700 font-mono text-sm">{currentSpotifyPlayer}</code>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="spotify-player-select" className="text-sm font-medium text-gray-700">
+                                        New Spotify Player
+                                    </Label>
+                                    <div className="flex gap-2">
+                                        <Select
+                                            value={selectedSpotifyPlayer}
+                                            onValueChange={setSelectedSpotifyPlayer}
+                                        >
+                                            <SelectTrigger
+                                                id="spotify-player-select"
+                                                className="border-emerald-200 focus:border-emerald-400 min-w-[180px]"
+                                            >
+                                                <SelectValue placeholder="Select a player device" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {spotifyPlayers.map((device) => (
+                                                    <SelectItem key={device.id} value={device.id}>
+                                                        {device.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <Button
+                                            onClick={handleSetSpotifyPlayer}
+                                            className="bg-emerald-300 hover:bg-emerald-700"
+                                            disabled={!selectedSpotifyPlayer}
+                                        >
+                                            Set
+                                        </Button>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </aside>
+
+                {/* Main Content */}
+                <main className="flex-1 p-6">
+                    <div className="flex flex-col gap-6">
+                        {/* Add New Card */}
+
+                        <Card className="border-emerald-200 shadow-mdv rounded-md p-0">
+                            <CardHeader className="bg-emerald-300 text-emerald-800 p-4 rounded-t-md">
+                                <CardTitle className="flex items-center">
+                                    <Plus className="h-5 w-5" />
+                                    Add New Card
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-6">
+
+                                {lastTappedCardId && (
+                                    <div>
+                                        <Label className="text-sm font-medium text-gray-700">Last Tapped Card</Label>
+                                        <div className="mt-1 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                                            <code className="text-emerald-700 font-mono text-sm">{lastTappedCardId}</code>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="card-id" className="text-sm font-medium text-gray-700">
+                                            Card ID
+                                        </Label>
+                                        <Input
+                                            id="card-id"
+                                            value={newCardId}
+                                            onChange={(e) => setNewCardId(e.target.value)}
+                                            placeholder="e.g., 1092409874..."
+                                            className="border-emerald-200 focus:border-emerald-400"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="spotify-url" className="text-sm font-medium text-gray-700">
+                                            Spotify URL
+                                        </Label>
+                                        <Input
+                                            id="spotify-url"
+                                            value={spotifyUrl}
+                                            onChange={(e) => setSpotifyUrl(e.target.value)}
+                                            placeholder="https://open.spotify.com/track/..."
+                                            className="border-emerald-200 focus:border-emerald-400"
+                                        />
+                                    </div>
+                                </div>
+                                <Button
+                                    onClick={handleAddCard}
+                                    className="mt-4 bg-emerald-300 hover:bg-emerald-700"
+                                    disabled={!newCardId.trim() || !spotifyUrl.trim()}
+                                >
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Add New Card
+                                </Button>
+                            </CardContent>
+                        </Card>
+
+                        {/* Cards Table */}
+
+                        <Card className="border-emerald-00 shadow-mdv rounded-md p-0">
+                            <CardHeader className="bg-emerald-300 text-emerald-800 p-4 rounded-t-md">
+                                <CardTitle className="flex items-center gap-2">
+                                    <Nfc className="h-5 w-5" />
+                                    Cards Collection
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="bg-emerald-50">
+                                            <TableHead className="font-semibold text-emerald-800">Card ID</TableHead>
+                                            <TableHead className="font-semibold text-emerald-800">Song</TableHead>
+                                            <TableHead className="font-semibold text-emerald-800">Artist</TableHead>
+                                            <TableHead className="font-semibold text-emerald-800">Spotify URL</TableHead>
+                                            <TableHead className="font-semibold text-emerald-800">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {cards.map((card) => (
+                                            <TableRow key={card.id} className="hover:bg-emerald-25">
+                                                <TableCell>
+                                                    <Badge variant="outline" className="border-emerald-400 text-emerald-700 bg-emerald-50">
+                                                        {card.id}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="font-medium">{card.trackName}</TableCell>
+                                                <TableCell className="text-gray-600">{card.artistName}</TableCell>
+                                                <TableCell className="text-emerald-600">
+                                                    {card.spotifyUrl}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex gap-2">
+                                                        {/* <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="text-emerald-300 hover:text-emerald-800 hover:bg-emerald-50"
+                                                        >
+                                                            <Edit className="h-4 w-4" />
+                                                        </Button> */}
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => handleDeleteCard(card.id)}
+                                                            className="text-emerald-300 hover:text-emerald-800 hover:bg-emerald-100"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </main>
+            </div>
         </div>
-      )}
-      <header className="border-b">
-        <div className="container flex h-16 items-center justify-between px-4">
-          <h1 className="text-xl font-semibold">tappytrack!</h1>
-          <div>
-            <button
-              className="text-sm text-black hover:text-red-600 font-medium underline bg-transparent border-0 p-0 cursor-pointer"
-              onClick={() => signOut({ callbackUrl: '/' })}
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <div className="flex flex-col items-center justify-center">
-        <main className="w-full max-w-4xl px-4 py-8 flex flex-col items-center justify-center">
-          <div className="mb-8 p-6 border rounded-lg bg-gray-50 w-full">
-            <div className="mb-4">
-              <div className="flex flex-col gap-6">
-                <div className="grid gap-3">
-                  <Label htmlFor="cardid">CardID</Label>
-                  <Input
-                    id="cardid"
-                    placeholder="Enter value or tap a new card on your device to capture the ID"
-                    value={newCardId || ""}
-                    onChange={(e) => setNewCardId(e.target.value)}
-                    className="w-full"
-                  />
-                </div>
-                <div className="grid gap-3">
-                  <Label htmlFor="spotify-url">Spotify URL</Label>
-                  <Input
-                    id="spotify-url"
-                    type="url"
-                    placeholder="Enter Spotify URL"
-                    value={spotifyUrl}
-                    onChange={(e) => setSpotifyUrl(e.target.value)}
-                    className="w-full"
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end mt-4 gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                aria-label="Refresh cards"
-                onClick={fetchCards}
-                className="h-9 w-9"
-              >
-                <RefreshCw className="h-4 w-4" />
-              </Button>
-              <Button onClick={handleAddCard}>Add New Card</Button>
-            </div>
-          </div>
-          {/* Device ID display */}
-          {deviceid && (
-            <div className="mb-8 p-6 border rounded-lg bg-gray-50 w-full flex flex-col gap-4">
-              <div className="flex flex-col gap-3">
-                <Label htmlFor="deviceid">Device ID</Label>
-                <div className="flex gap-2 items-center">
-                  <Input
-                    id="deviceid"
-                    value={deviceid || ""}
-                    readOnly
-                    className="w-full bg-gray-100 cursor-default"
-                  />
-                  <Button
-                    onClick={() => setShowDeviceModal(true)}
-                  >
-                    Connect New Device
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Spotify Device Dropdown Section */}
-          <div className="mb-8 p-6 border rounded-lg bg-gray-50 w-full flex flex-col gap-4">
-            <div className="flex flex-col gap-3">
-              <Label htmlFor="spotify-device">Select Spotify Player</Label>
-              <div className="flex gap-2 items-center">
-                <select
-                  id="spotify-device"
-                  className="w-full bg-gray-100 border rounded px-3 py-2"
-                  value={selectedSpotifyPlayer}
-                  onChange={e => setSelectedSpotifyPlayer(e.target.value)}
-                >
-                  <option value="">Select a Spotify player...</option>
-                  {spotifyPlayers.map((player) => (
-                    <option key={player.id} value={player.id}>{player.name}</option>
-                  ))}
-                </select>
-                <Button onClick={handleSetSpotifyPlayer} disabled={!selectedSpotifyPlayer}>Set Spotify Player</Button>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-md border w-full overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[180px]">Card ID</TableHead>
-                  <TableHead className="w-[220px]">Track Name</TableHead>
-                  <TableHead className="w-[180px]">Artist Name</TableHead>
-                  <TableHead>Spotify URL</TableHead>
-                  <TableHead className="w-[100px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {cards.map((card) => (
-                  <TableRow key={card.id}>
-                    <TableCell className="font-mono">{card.id}</TableCell>
-                    <TableCell className="truncate max-w-[220px]">{card.trackName || ""}</TableCell>
-                    <TableCell className="truncate max-w-[180px]">{card.artistName || ""}</TableCell>
-                    <TableCell className="font-mono text-sm truncate max-w-[400px]">{card.spotifyUrl}</TableCell>
-                    <TableCell>
-                      <Button
-                        variant="outline"
-                        className="bg-white text-red-500 hover:bg-red-50 hover:text-red-600"
-                        size="sm"
-                        onClick={() => handleDeleteCard(card.id)}
-                      >
-                        Delete
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </main>
-      </div>
-    </div>
-  )
+    )
 }
