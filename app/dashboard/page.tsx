@@ -79,6 +79,7 @@ export default function Dashboard() {
                 const data = await res.json();
                 if (Array.isArray(data.players)) {
                     setSpotifyPlayers(data.players.map((d: { id: string; name: string }) => ({ id: d.id, name: d.name })));
+                    setSelectedSpotifyPlayer(data.players.length > 0 ? data.players[0].id : "");
                 }
             } catch (err) {
                 console.error("Error fetching Spotify players:", err);
@@ -228,7 +229,7 @@ export default function Dashboard() {
                                             placeholder="Enter device ID"
                                             className="border-emerald-200 focus:border-emerald-400"
                                         />
-                                        <Button onClick={handleNewDeviceSubmit} className="bg-emerald-300 hover:bg-emerald-700">
+                                        <Button onClick={handleNewDeviceSubmit} className="text-emerald-800 bg-emerald-300 hover:bg-emerald-400">
                                             Set
                                         </Button>
                                     </div>
@@ -238,7 +239,7 @@ export default function Dashboard() {
                         </Card>
 
                         {/* Spotify Player Selection */}
-                        <Card className="border-emerald-300 shadow-mdv rounded-md p-0">
+                        <Card className="border-emerald-200 shadow-mdv rounded-md p-0">
                             <CardHeader className="bg-emerald-100 pb-3 p-4 rounded-t-md">
                                 <CardTitle className="flex items-center gap-2 text-emerald-800">
                                     <Smartphone className="h-5 w-5" />
@@ -253,7 +254,7 @@ export default function Dashboard() {
                                     </div>
                                 </div>
 
-                                <div className="space-y-2">
+                                <div className="space-y-2 mt-4">
                                     <Label htmlFor="spotify-player-select" className="text-sm font-medium text-gray-700">
                                         New Spotify Player
                                     </Label>
@@ -278,14 +279,13 @@ export default function Dashboard() {
                                         </Select>
                                         <Button
                                             onClick={handleSetSpotifyPlayer}
-                                            className="bg-emerald-300 hover:bg-emerald-700"
+                                            className="text-emerald-800 bg-emerald-300 hover:bg-emerald-400"
                                             disabled={!selectedSpotifyPlayer}
                                         >
                                             Set
                                         </Button>
                                     </div>
                                     <div className="flex gap-2">    </div>
-
                                 </div>
                             </CardContent>
                         </Card>
@@ -298,7 +298,7 @@ export default function Dashboard() {
                         {/* Add New Card */}
 
                         <Card className="border-emerald-200 shadow-mdv rounded-md p-0">
-                            <CardHeader className="bg-emerald-300 text-emerald-800 p-4 rounded-t-md">
+                            <CardHeader className="bg-emerald-100 text-emerald-800 p-4 rounded-t-md">
                                 <CardTitle className="flex items-center">
                                     <Plus className="h-5 w-5" />
                                     Add New Card
@@ -315,7 +315,7 @@ export default function Dashboard() {
                                     </div>
                                 )}
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="card-id" className="text-sm font-medium text-gray-700">
                                             Card ID
@@ -343,8 +343,7 @@ export default function Dashboard() {
                                 </div>
                                 <Button
                                     onClick={handleAddCard}
-                                    className="mt-4 bg-emerald-300 hover:bg-emerald-700"
-                                    disabled={!newCardId.trim() || !spotifyUrl.trim()}
+                                    className="text-emerald-800 bg-emerald-300 hover:bg-emerald-400 mt-4"
                                 >
                                     <Plus className="h-4 w-4 mr-2" />
                                     Add New Card
@@ -354,8 +353,8 @@ export default function Dashboard() {
 
                         {/* Cards Table */}
 
-                        <Card className="border-emerald-00 shadow-mdv rounded-md p-0">
-                            <CardHeader className="bg-emerald-300 text-emerald-800 p-4 rounded-t-md">
+                        <Card className="border-emerald-200 shadow-mdv rounded-md p-0">
+                            <CardHeader className="bg-emerald-100 text-emerald-800 p-4 rounded-t-md">
                                 <CardTitle className="flex items-center gap-2">
                                     <Nfc className="h-5 w-5" />
                                     Cards Collection
