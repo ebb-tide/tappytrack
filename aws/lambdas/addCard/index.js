@@ -42,10 +42,12 @@ exports.handler = async (event) => {
     return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON" }) };
   }
 
-  const { userid, cardID, spotifyURL } = data;
+  let { userid, cardID, spotifyURL } = data;
   if (!userid || !cardID || !spotifyURL) {
     return { statusCode: 400, body: JSON.stringify({ error: "Missing fields" }) };
   }
+
+  cardID = cardID.toUpperCase();
 
   // Lookup track info from Spotify
   let trackName = null;

@@ -24,10 +24,14 @@ exports.handler = async (event) => {
   } catch {
     return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON" }) };
   }
-  const { deviceid, cardID } = data;
+
+  let { deviceid, cardID } = data;
   if (!deviceid || !cardID) {
     return { statusCode: 400, body: JSON.stringify({ error: "Missing deviceid or cardID" }) };
   }
+
+  cardID = cardID.toUpperCase();
+
   const client = new DynamoDBClient();
   const ddbDocClient = DynamoDBDocumentClient.from(client);
   // 1. Lookup userid from devices table

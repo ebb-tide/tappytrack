@@ -16,10 +16,12 @@ exports.handler = async (event) => {
     return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON" }) };
   }
 
-  const { userid, cardID } = data;
+  let { userid, cardID } = data;
   if (!userid || !cardID) {
     return { statusCode: 400, body: JSON.stringify({ error: "Missing fields" }) };
   }
+  
+  cardID = cardID.toUpperCase();
 
   const client = new DynamoDBClient();
   const ddbDocClient = DynamoDBDocumentClient.from(client);
