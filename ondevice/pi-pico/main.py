@@ -11,6 +11,15 @@ import urequests
 WIFI_FILE = "wifi.json"
 DEVICE_FILE = "device.json"
 
+piezo = machine.PWM(machine.Pin(15))
+
+def buzz_on():
+    piezo.freq(800)
+    piezo.duty_u16(40000)   # a bit louder than 50%
+    time.sleep(0.7)
+    piezo.duty_u16(0)
+
+
 def read_wifi_config():
     try:
         with open(WIFI_FILE, "r") as f:
@@ -51,7 +60,8 @@ def connect_wifi(ssid, password):
 
 def start_ap_mode():
     ap = network.WLAN(network.AP_IF)
-    ap.config(essid="NFC-Setup", password="12345678")
+    ap.config(essid="TappyTrack password:12345678 navigate to 192.168.4.1", password="12345678")
+    ap.ifconfig(('192.168.4.1', '255.255.255.0', '192.168.4.1', '8.8.8.8'))  # Set a simple IP address
     ap.active(True)
     print("AP mode started. Connect to:", ap.ifconfig()[0])
     return ap
@@ -110,6 +120,7 @@ if device_id and lambda_url and lambda_secret:
     ssid, password = read_wifi_config()
 
     if ssid and password:
+        buzz_on();
         if connect_wifi(ssid, password):
 
             # Initialize NFC PN532
@@ -138,6 +149,8 @@ if device_id and lambda_url and lambda_secret:
 
                 uid_str = "".join(["%02X" % b for b in uid])
                 print("Card detected! UID:", uid_str)
+                
+                buzz_on();
 
                 try:
                     payload = json.dumps({
@@ -173,3 +186,4 @@ if device_id and lambda_url and lambda_secret:
 else :
     print("No device configuration found.")
 # MAIN LOGIC
+
