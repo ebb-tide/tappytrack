@@ -60,7 +60,7 @@ def connect_wifi(ssid, password):
 
 def start_ap_mode():
     ap = network.WLAN(network.AP_IF)
-    ap.config(essid="TappyTrack password:12345678 navigate to 192.168.4.1", password="12345678")
+    ap.config(essid="tappytrack", password="12345678")
     ap.ifconfig(('192.168.4.1', '255.255.255.0', '192.168.4.1', '8.8.8.8'))  # Set a simple IP address
     ap.active(True)
     print("AP mode started. Connect to:", ap.ifconfig()[0])
@@ -99,7 +99,7 @@ HTTP/1.1 200 OK
                 param_dict = {kv.split('=')[0]: kv.split('=')[1].replace('%20', ' ') for kv in params}
                 ssid = param_dict.get("ssid", "")
                 password = param_dict.get("password", "")
-                print("Saving Wi-Fi credentials:", ssid, password)
+                print("Saving Wi-Fi credentials.")
                 save_wifi_config(ssid, password)
                 cl.send("HTTP/1.1 200 OK\r\n\r\nSaved. Rebooting...")
                 cl.close()
@@ -162,9 +162,6 @@ if device_id and lambda_url and lambda_secret:
                         "x-internal": lambda_secret
                     }
                     lambda_endpoint = lambda_url + "/tap"
-                    print("POSTing to:", lambda_endpoint)
-                    print("Payload:", payload)
-                    print("Headers:", headers)
                     r = urequests.post(lambda_endpoint, data=payload, headers=headers)
                     print("Response status:", r.status_code)
                     print("Response text:", r.text)
