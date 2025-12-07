@@ -182,7 +182,7 @@ export default function Dashboard() {
 
 
     return (
-        <div className="min-h-screen">
+        <div className="min-h-screen overflow-x-hidden">
             {/* Header */}
             <header className="bg-emerald-300 text-emerald-800 p-4 shadow-lg">
                 <div className="bg-emerald-300 flex items-center justify-between">
@@ -299,8 +299,8 @@ export default function Dashboard() {
                 </aside>
 
                 {/* Main Content */}
-                <main className="flex-1 p-6">
-                    <div className="flex flex-col gap-6">
+                <main className="flex-1 p-6 min-w-0">
+                    <div className="flex flex-col gap-6 min-w-0">
                         {/* Add New Card */}
 
                         <Card className="border-emerald-200 shadow-mdv rounded-md p-0">
@@ -316,7 +316,7 @@ export default function Dashboard() {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                                         <div className="space-y-2">
                                             <Label htmlFor="card-id" className="text-sm font-medium text-gray-700">
-                                                Card ID
+                                                Last Tapped Card ID
                                             </Label>
                                             <div className="mt-1 flex h-9 items-center rounded-md border border-emerald-200 bg-emerald-50 px-3">
                                                 <code className="text-emerald-700 font-mono text-sm">
@@ -339,7 +339,8 @@ export default function Dashboard() {
                                     </div>
                                     <Button
                                         onClick={handleAddCard}
-                                        className="text-emerald-800 bg-emerald-300 hover:bg-emerald-400 mt-4"
+                                        disabled={(!lastTappedCardId || spotifyUrl.trim() === "" || !session?.user?.id)}
+                                        className="text-emerald-800 bg-emerald-300 hover:bg-emerald-400 mt-4 disabled:opacity-60"
                                     >
                                         <Plus className="h-4 w-4 mr-2" />
                                         Add New Card
