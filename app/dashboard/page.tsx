@@ -52,7 +52,14 @@ export default function Dashboard() {
                 const res = await fetch(`/api/get-cards?userid=${session.user.id}`);
                 const data = await res.json();
                 setCards(data.cards || []);
-                setLastTappedCardId(data.lastCard || null);
+                // Only set last tapped card if it's NOT already present in the user's cards
+                const lastCard = data.lastCard || null;
+                if (lastCard) {
+                    const alreadyHasCard = Array.isArray(data.cards) && data.cards.some((c: { id: string }) => c.id === lastCard);
+                    setLastTappedCardId(alreadyHasCard ? null : lastCard);
+                } else {
+                    setLastTappedCardId(null);
+                }
                 setDeviceId(data.deviceid || "");
                 setCurrentSpotifyPlayer(data.player?.name || "");
                 // if (!data.deviceid) {
@@ -300,7 +307,7 @@ export default function Dashboard() {
                             <CardHeader className="bg-emerald-100 text-emerald-800 p-4 rounded-t-md">
                                 <CardTitle className="flex items-center">
                                     <Plus className="h-5 w-5" />
-                                    {lastTappedCardId ? ' Add New Card' : ' Tap a blank card to add a new song to your collection'}
+                                    {lastTappedCardId ? ' Add New Card' : '  Tap a blank card to add a new song to your collection'}
                                 </CardTitle>
                             </CardHeader>
                             {lastTappedCardId && (
@@ -311,8 +318,10 @@ export default function Dashboard() {
                                             <Label htmlFor="card-id" className="text-sm font-medium text-gray-700">
                                                 Card ID
                                             </Label>
-                                            <div className="mt-1 p-3 bg-emerald-50 rounded-md border border-emerald-200">
-                                                <code className="text-emerald-700 font-mono text-sm">{lastTappedCardId}</code>
+                                            <div className="mt-1 flex h-9 items-center rounded-md border border-emerald-200 bg-emerald-50 px-3">
+                                                <code className="text-emerald-700 font-mono text-sm">
+                                                    {lastTappedCardId}
+                                                </code>
                                             </div>
                                         </div>
                                         <div className="space-y-2">
