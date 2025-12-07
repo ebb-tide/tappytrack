@@ -15,13 +15,13 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-white px-4">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-emerald-50 px-4">
       <div className="text-center space-y-6 max-w-md">
-        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">tappytrack</h1>
-        <p className="text-muted-foreground">
-          a spotify player kids can run
+        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl text-emerald-600">tappytrack</h1>
+        <p className="text-emerald-700">
+          a spotify player for kids!
         </p>
-          <Button size="lg" className="mt-2"
+          <Button size="lg" className="mt-2 text-emerald-800 bg-emerald-300 hover:bg-emerald-400"
             onClick={() => signIn('spotify',{ callbackUrl: '/dashboard' })}>
             Sign in with Spotify
           </Button>
