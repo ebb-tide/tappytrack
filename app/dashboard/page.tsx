@@ -245,7 +245,7 @@ export default function Dashboard() {
                         </Card>
 
                         {/* Spotify Player Selection */}
-                        <Card className="border-emerald-200 shadow-mdv rounded-md p-0">
+                        <Card className="border-emerald-200 shadow-mdv rounded-md">
                             <CardHeader className="bg-emerald-100 pb-3 p-4 rounded-t-md">
                                 <CardTitle className="flex items-center gap-2 text-emerald-800">
                                     <Smartphone className="h-5 w-5" />
