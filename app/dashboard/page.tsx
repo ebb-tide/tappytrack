@@ -31,13 +31,12 @@ interface Card {
 
 export default function Dashboard() {
     const { data: session, status } = useSession();
-    const [lastTappedCardId, setLastTappedCardId] = useState("(tap a card to see the ID)");
+    const [lastTappedCardId, setLastTappedCardId] = useState(null);
     const [cards, setCards] = useState<Card[]>([]);
     const [deviceid, setDeviceId] = useState("");
     const [spotifyPlayers, setSpotifyPlayers] = useState<{ id: string, name: string }[]>([]);
     const [currentSpotifyPlayer, setCurrentSpotifyPlayer] = useState<string>("");
 
-    const [newCardId, setNewCardId] = useState("");
     const [spotifyUrl, setSpotifyUrl] = useState("");
     const [newDeviceId, setNewDeviceId] = useState("");
     // const deviceInputRef = useRef<HTMLInputElement>(null);
@@ -53,7 +52,7 @@ export default function Dashboard() {
                 const res = await fetch(`/api/get-cards?userid=${session.user.id}`);
                 const data = await res.json();
                 setCards(data.cards || []);
-                setLastTappedCardId(data.lastCard || "(tap a card to see the ID)");
+                setLastTappedCardId(data.lastCard || null);
                 setDeviceId(data.deviceid || "");
                 setCurrentSpotifyPlayer(data.player?.name || "");
                 // if (!data.deviceid) {
@@ -65,7 +64,7 @@ export default function Dashboard() {
             } catch (err) {
                 console.error("Error fetching cards:", err);
                 setCards([]);
-                setLastTappedCardId("(tap a card to see the ID)");
+                setLastTappedCardId(null);
                 setDeviceId("");
             }
         }
@@ -95,19 +94,19 @@ export default function Dashboard() {
     }, [status, session]);
 
     const handleAddCard = async () => {
-        if (!newCardId || spotifyUrl.trim() === "" || !session?.user?.id) return;
+        if (!lastTappedCardId || spotifyUrl.trim() === "" || !session?.user?.id) return;
         const res = await fetch('/api/add-card', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 userid: session.user.id,
-                cardID: newCardId,
+                cardID: lastTappedCardId,
                 spotifyURL: spotifyUrl,
             }),
         });
         if (res.ok) {
             setSpotifyUrl("");
-            setNewCardId("");
+            setLastTappedCardId(null);
             fetchState();
         } else {
             console.log("Failed to add card:", res.statusText);
@@ -301,54 +300,44 @@ export default function Dashboard() {
                             <CardHeader className="bg-emerald-100 text-emerald-800 p-4 rounded-t-md">
                                 <CardTitle className="flex items-center">
                                     <Plus className="h-5 w-5" />
-                                    Add New Card
+                                    {lastTappedCardId ? ' Add New Card' : ' Tap a blank card to add a new song to your collection'}
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent className="p-6">
+                            {lastTappedCardId && (
+                                <CardContent className="p-6">
 
-                                {lastTappedCardId && (
-                                    <div>
-                                        <Label className="text-sm font-medium text-gray-700">Last Tapped Card</Label>
-                                        <div className="mt-1 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
-                                            <code className="text-emerald-700 font-mono text-sm">{lastTappedCardId}</code>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="card-id" className="text-sm font-medium text-gray-700">
+                                                Card ID
+                                            </Label>
+                                            <div className="mt-1 p-3 bg-emerald-50 rounded-md border border-emerald-200">
+                                                <code className="text-emerald-700 font-mono text-sm">{lastTappedCardId}</code>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="spotify-url" className="text-sm font-medium text-gray-700">
+                                                Spotify URL
+                                            </Label>
+                                            <Input
+                                                id="spotify-url"
+                                                value={spotifyUrl}
+                                                onChange={(e) => setSpotifyUrl(e.target.value)}
+                                                placeholder="https://open.spotify.com/track/..."
+                                                className="border-emerald-200 focus:border-emerald-400"
+                                            />
                                         </div>
                                     </div>
-                                )}
+                                    <Button
+                                        onClick={handleAddCard}
+                                        className="text-emerald-800 bg-emerald-300 hover:bg-emerald-400 mt-4"
+                                    >
+                                        <Plus className="h-4 w-4 mr-2" />
+                                        Add New Card
+                                    </Button>
+                                </CardContent>
+                            )}
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="card-id" className="text-sm font-medium text-gray-700">
-                                            Card ID
-                                        </Label>
-                                        <Input
-                                            id="card-id"
-                                            value={newCardId}
-                                            onChange={(e) => setNewCardId(e.target.value)}
-                                            placeholder="e.g., 1092409874..."
-                                            className="border-emerald-200 focus:border-emerald-400"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="spotify-url" className="text-sm font-medium text-gray-700">
-                                            Spotify URL
-                                        </Label>
-                                        <Input
-                                            id="spotify-url"
-                                            value={spotifyUrl}
-                                            onChange={(e) => setSpotifyUrl(e.target.value)}
-                                            placeholder="https://open.spotify.com/track/..."
-                                            className="border-emerald-200 focus:border-emerald-400"
-                                        />
-                                    </div>
-                                </div>
-                                <Button
-                                    onClick={handleAddCard}
-                                    className="text-emerald-800 bg-emerald-300 hover:bg-emerald-400 mt-4"
-                                >
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    Add New Card
-                                </Button>
-                            </CardContent>
                         </Card>
 
                         {/* Cards Table */}
