@@ -7,6 +7,25 @@ const CARDS_TABLE = process.env.CARDS_TABLE;
 const USERS_TABLE = process.env.USERS_TABLE;
 const PLAYER_ID= "92aea6c4165c29ecb355eb798c86571e82ef1fe0";
 
+async function recordUserError(ddbDocClient, userid, message) {
+  if (!userid) return;
+  try {
+    await ddbDocClient.send(new UpdateCommand({
+      TableName: USERS_TABLE,
+      Key: { userid },
+      UpdateExpression: 'SET lastErrorMessage = :msg, lastErrorAt = :ts, lastErrorSource = :src',
+      ConditionExpression: 'attribute_exists(userid)',
+      ExpressionAttributeValues: {
+        ':msg': message,
+        ':ts': Date.now(),
+        ':src': 'tapCard'
+      }
+    }));
+  } catch (err) {
+    console.error('Failed to record last error:', err);
+  }
+}
+
 function extractSpotifyTrackId(url) {
   const match = url.match(/spotify\.com\/track\/([a-zA-Z0-9]+)/);
   return match ? match[1] : null;
@@ -60,7 +79,9 @@ exports.handler = async (event) => {
       // return { statusCode: 404, body: JSON.stringify({ error: "Card not found" }) };
     // }
   } catch (err) {
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    const message = err.message || 'Failed to load card';
+    await recordUserError(ddbDocClient, userid, message);
+    return { statusCode: 500, body: JSON.stringify({ error: message }) };
   }
   // 3. Lookup user record and log it
   let user;
@@ -71,7 +92,13 @@ exports.handler = async (event) => {
     }));
     user = userRes.Item;
   } catch (err) {
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    const message = err.message || 'Failed to load user';
+    await recordUserError(ddbDocClient, userid, message);
+    return { statusCode: 500, body: JSON.stringify({ error: message }) };
+  }
+
+  if (!user) {
+    return { statusCode: 404, body: JSON.stringify({ error: "User not found" }) };
   }
   // 4. Write lastCard and lastCardTimestamp to user record
   try {
@@ -85,7 +112,9 @@ exports.handler = async (event) => {
       }
     }));
   } catch (err) {
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    const message = err.message || 'Failed to update last card';
+    await recordUserError(ddbDocClient, userid, message);
+    return { statusCode: 500, body: JSON.stringify({ error: message }) };
   }
 
   // 5. Spotify API: get accessToken, refresh if needed, fetch devices
@@ -123,7 +152,9 @@ exports.handler = async (event) => {
           }
         }));
       } catch (err) {
-        return { statusCode: 500, body: JSON.stringify({ error: 'Spotify token refresh failed: ' + err.message }) };
+        const message = 'Spotify token refresh failed: ' + err.message;
+        await recordUserError(ddbDocClient, userid, message);
+        return { statusCode: 500, body: JSON.stringify({ error: message }) };
       }
     }
 
@@ -149,7 +180,9 @@ exports.handler = async (event) => {
         }
         playStatus = 'success';
       } catch (err) {
-        return { statusCode: 500, body: JSON.stringify({ error: 'Spotify play failed: ' + err.message }) };
+        const message = 'Spotify play failed: ' + err.message;
+        await recordUserError(ddbDocClient, userid, message);
+        return { statusCode: 500, body: JSON.stringify({ error: message }) };
       }
     }
 

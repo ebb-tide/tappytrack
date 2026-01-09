@@ -1,8 +1,27 @@
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
-const { DynamoDBDocumentClient, GetCommand, QueryCommand } = require("@aws-sdk/lib-dynamodb");
+const { DynamoDBDocumentClient, GetCommand, QueryCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
 
 const USERS_TABLE = process.env.USERS_TABLE;
 const CARDS_TABLE = process.env.CARDS_TABLE;
+
+async function recordUserError(ddbDocClient, userid, message) {
+  if (!userid) return;
+  try {
+    await ddbDocClient.send(new UpdateCommand({
+      TableName: USERS_TABLE,
+      Key: { userid },
+      UpdateExpression: 'SET lastErrorMessage = :msg, lastErrorAt = :ts, lastErrorSource = :src',
+      ConditionExpression: 'attribute_exists(userid)',
+      ExpressionAttributeValues: {
+        ':msg': message,
+        ':ts': Date.now(),
+        ':src': 'getUserCards'
+      }
+    }));
+  } catch (err) {
+    console.error('Failed to record last error:', err);
+  }
+}
 
 exports.handler = async (event) => {
 
@@ -37,7 +56,9 @@ exports.handler = async (event) => {
     }
   } catch (err) {
     console.error('DynamoDB get user error:', err);
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    const message = err.message || 'Failed to load user';
+    await recordUserError(ddbDocClient, userid, message);
+    return { statusCode: 500, body: JSON.stringify({ error: message }) };
   }
 
   const deviceid = user.deviceid
@@ -71,11 +92,25 @@ exports.handler = async (event) => {
     }));
   } catch (err) {
     console.error('DynamoDB query cards error:', err);
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    const message = err.message || 'Failed to load cards';
+    await recordUserError(ddbDocClient, userid, message);
+    return { statusCode: 500, body: JSON.stringify({ error: message }) };
   }
 
   return {
     statusCode: 200,
-    body: JSON.stringify({ cards, lastCard, deviceid, player })
+    body: JSON.stringify({
+      cards,
+      lastCard,
+      deviceid,
+      player,
+      lastError: user.lastErrorMessage
+        ? {
+            message: user.lastErrorMessage,
+            at: user.lastErrorAt || null,
+            source: user.lastErrorSource || null
+          }
+        : null
+    })
   };
 };

@@ -1,8 +1,9 @@
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
-const { DynamoDBDocumentClient, PutCommand } = require("@aws-sdk/lib-dynamodb");
+const { DynamoDBDocumentClient, PutCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
 const fetch = require("node-fetch");
 
 const CARDS_TABLE = process.env.CARDS_TABLE;
+const USERS_TABLE = process.env.USERS_TABLE;
 const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
 const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
 
@@ -28,6 +29,25 @@ async function getSpotifyAppToken() {
 
 const client = new DynamoDBClient();
 const ddbDocClient = DynamoDBDocumentClient.from(client);
+
+async function recordUserError(userid, message) {
+  if (!USERS_TABLE || !userid) return;
+  try {
+    await ddbDocClient.send(new UpdateCommand({
+      TableName: USERS_TABLE,
+      Key: { userid },
+      UpdateExpression: 'SET lastErrorMessage = :msg, lastErrorAt = :ts, lastErrorSource = :src',
+      ConditionExpression: 'attribute_exists(userid)',
+      ExpressionAttributeValues: {
+        ':msg': message,
+        ':ts': Date.now(),
+        ':src': 'addCard'
+      }
+    }));
+  } catch (err) {
+    console.error('Failed to record last error:', err);
+  }
+}
 
 exports.handler = async (event) => {
   const secret = event.headers["x-internal"];
@@ -76,6 +96,8 @@ exports.handler = async (event) => {
     }));
     return { statusCode: 201, body: JSON.stringify({ message: "Card added", trackName, artistName }) };
   } catch (err) {
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    const message = err.message || 'Failed to add card';
+    await recordUserError(userid, message);
+    return { statusCode: 500, body: JSON.stringify({ error: message }) };
   }
 };

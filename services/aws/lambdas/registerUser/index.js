@@ -1,7 +1,26 @@
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
-const { DynamoDBDocumentClient, GetCommand, PutCommand } = require("@aws-sdk/lib-dynamodb");
+const { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
 
 const USERS_TABLE = process.env.USERS_TABLE;
+
+async function recordUserError(ddbDocClient, userid, message) {
+  if (!userid) return;
+  try {
+    await ddbDocClient.send(new UpdateCommand({
+      TableName: USERS_TABLE,
+      Key: { userid },
+      UpdateExpression: 'SET lastErrorMessage = :msg, lastErrorAt = :ts, lastErrorSource = :src',
+      ConditionExpression: 'attribute_exists(userid)',
+      ExpressionAttributeValues: {
+        ':msg': message,
+        ':ts': Date.now(),
+        ':src': 'registerUser'
+      }
+    }));
+  } catch (err) {
+    console.error('Failed to record last error:', err);
+  }
+}
 
 exports.handler = async (event) => {
   console.log('registerUser Lambda invoked');
@@ -64,6 +83,8 @@ exports.handler = async (event) => {
     return { statusCode: 201, body: JSON.stringify({ message: 'User created' }) };
   } catch (err) {
     console.error('DynamoDB error:', err);
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    const message = err.message || 'Failed to register user';
+    await recordUserError(ddbDocClient, userid, message);
+    return { statusCode: 500, body: JSON.stringify({ error: message }) };
   }
 };

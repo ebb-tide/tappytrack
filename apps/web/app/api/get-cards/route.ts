@@ -25,10 +25,10 @@ export async function GET(req: NextRequest) {
   const response = await lambdaRes.json();
 
   const cards = response.cards || [];
-  const lastCard= response.lastCard || null;
-  const deviceid= response.deviceid || null;
-  const player= response.player || null;
+  const lastCard = response.lastCard || null;
+  const deviceid = response.deviceid || null;
+  const player = response.player || null;
+  const lastError = response.lastError || null;
 
-  return NextResponse.json({ cards, lastCard, deviceid, player });
+  return NextResponse.json({ cards, lastCard, deviceid, player, lastError });
 }
-

@@ -29,6 +29,12 @@ interface Card {
     artistName?: string
 }
 
+interface LastError {
+    message: string
+    source?: string | null
+    at?: number | null
+}
+
 export default function Dashboard() {
     const { data: session, status } = useSession();
     const [lastTappedCardId, setLastTappedCardId] = useState(null);
@@ -36,6 +42,7 @@ export default function Dashboard() {
     const [deviceid, setDeviceId] = useState("");
     const [spotifyPlayers, setSpotifyPlayers] = useState<{ id: string, name: string }[]>([]);
     const [currentSpotifyPlayer, setCurrentSpotifyPlayer] = useState<string>("");
+    const [lastError, setLastError] = useState<LastError | null>(null);
 
     const [spotifyUrl, setSpotifyUrl] = useState("");
     const [newDeviceId, setNewDeviceId] = useState("");
@@ -62,6 +69,7 @@ export default function Dashboard() {
                 }
                 setDeviceId(data.deviceid || "");
                 setCurrentSpotifyPlayer(data.player?.name || "");
+                setLastError(data.lastError || null);
                 // if (!data.deviceid) {
                 //     setShowDeviceModal(true);
                 //     if (deviceInputRef.current) {
@@ -73,6 +81,7 @@ export default function Dashboard() {
                 setCards([]);
                 setLastTappedCardId(null);
                 setDeviceId("");
+                setLastError(null);
             }
         }
     };
@@ -293,6 +302,31 @@ export default function Dashboard() {
                                     </div>
                                     <div className="flex gap-2">    </div>
                                 </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="border-emerald-200 shadow-mdv rounded-md">
+                            <CardHeader className="bg-emerald-100 pb-3 p-4 rounded-t-md">
+                                <CardTitle className="flex items-center gap-2 text-emerald-800">
+                                    Last Error
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-2">
+                                {lastError ? (
+                                    <>
+                                        <div className="text-sm text-emerald-800">
+                                            {lastError.message}
+                                        </div>
+                                        <div className="text-xs text-gray-600">
+                                            {lastError.source ? `Source: ${lastError.source}` : "Source: unknown"}
+                                        </div>
+                                        <div className="text-xs text-gray-600">
+                                            {lastError.at ? new Date(lastError.at).toLocaleString() : "Time: unknown"}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="text-sm text-gray-500">No recent errors.</div>
+                                )}
                             </CardContent>
                         </Card>
                     </div>

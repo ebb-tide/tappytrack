@@ -1,7 +1,27 @@
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
-const { DynamoDBDocumentClient, DeleteCommand } = require("@aws-sdk/lib-dynamodb");
+const { DynamoDBDocumentClient, DeleteCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
 
 const CARDS_TABLE = process.env.CARDS_TABLE;
+const USERS_TABLE = process.env.USERS_TABLE;
+
+async function recordUserError(ddbDocClient, userid, message) {
+  if (!USERS_TABLE || !userid) return;
+  try {
+    await ddbDocClient.send(new UpdateCommand({
+      TableName: USERS_TABLE,
+      Key: { userid },
+      UpdateExpression: 'SET lastErrorMessage = :msg, lastErrorAt = :ts, lastErrorSource = :src',
+      ConditionExpression: 'attribute_exists(userid)',
+      ExpressionAttributeValues: {
+        ':msg': message,
+        ':ts': Date.now(),
+        ':src': 'deleteCard'
+      }
+    }));
+  } catch (err) {
+    console.error('Failed to record last error:', err);
+  }
+}
 
 exports.handler = async (event) => {
   const secret = event.headers["x-internal"];
@@ -33,6 +53,8 @@ exports.handler = async (event) => {
     }));
     return { statusCode: 200, body: JSON.stringify({ message: "Card deleted" }) };
   } catch (err) {
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    const message = err.message || 'Failed to delete card';
+    await recordUserError(ddbDocClient, userid, message);
+    return { statusCode: 500, body: JSON.stringify({ error: message }) };
   }
 };

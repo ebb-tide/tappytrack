@@ -4,6 +4,25 @@ const fetch = require("node-fetch");
 
 const USERS_TABLE = process.env.USERS_TABLE;
 
+async function recordUserError(ddbDocClient, userid, message) {
+  if (!userid) return;
+  try {
+    await ddbDocClient.send(new UpdateCommand({
+      TableName: USERS_TABLE,
+      Key: { userid },
+      UpdateExpression: 'SET lastErrorMessage = :msg, lastErrorAt = :ts, lastErrorSource = :src',
+      ConditionExpression: 'attribute_exists(userid)',
+      ExpressionAttributeValues: {
+        ':msg': message,
+        ':ts': Date.now(),
+        ':src': 'getPlayers'
+      }
+    }));
+  } catch (err) {
+    console.error('Failed to record last error:', err);
+  }
+}
+
 exports.handler = async (event) => {
 //   const secret = event.headers && event.headers["x-internal"];
 //   if (secret !== process.env.INTERNAL_SECRET) {
@@ -31,7 +50,13 @@ exports.handler = async (event) => {
     }));
     user = userRes.Item;
   } catch (err) {
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    const message = err.message || 'Failed to load user';
+    await recordUserError(ddbDocClient, userid, message);
+    return { statusCode: 500, body: JSON.stringify({ error: message }) };
+  }
+
+  if (!user) {
+    return { statusCode: 404, body: JSON.stringify({ error: 'User not found' }) };
   }
 
   // Spotify API: get accessToken, refresh if needed, fetch devices
@@ -68,7 +93,9 @@ exports.handler = async (event) => {
         }
       }));
     } catch (err) {
-      return { statusCode: 500, body: JSON.stringify({ error: 'Spotify token refresh failed: ' + err.message }) };
+      const message = 'Spotify token refresh failed: ' + err.message;
+      await recordUserError(ddbDocClient, userid, message);
+      return { statusCode: 500, body: JSON.stringify({ error: message }) };
     }
   }
 
@@ -83,7 +110,9 @@ exports.handler = async (event) => {
       const data = await resp.json();
       players = data.devices || [];
     } catch (err) {
-      return { statusCode: 500, body: JSON.stringify({ error: 'Spotify players fetch failed: ' + err.message }) };
+      const message = 'Spotify players fetch failed: ' + err.message;
+      await recordUserError(ddbDocClient, userid, message);
+      return { statusCode: 500, body: JSON.stringify({ error: message }) };
     }
   }
 

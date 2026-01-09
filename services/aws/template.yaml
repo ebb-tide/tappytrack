@@ -90,9 +90,12 @@ Resources:
         - AWSLambdaBasicExecutionRole
         - DynamoDBCrudPolicy:
             TableName: tappycards
+        - DynamoDBCrudPolicy:
+            TableName: tappyusers
       Environment:
         Variables:
           CARDS_TABLE: tappycards
+          USERS_TABLE: tappyusers
           INTERNAL_SECRET: !Ref InternalSecret
       Events:
         Api:
@@ -159,9 +162,12 @@ Resources:
         - AWSLambdaBasicExecutionRole
         - DynamoDBCrudPolicy:
             TableName: tappycards
+        - DynamoDBCrudPolicy:
+            TableName: tappyusers
       Environment:
         Variables:
           CARDS_TABLE: tappycards
+          USERS_TABLE: tappyusers
           INTERNAL_SECRET: !Ref InternalSecret
           SPOTIFY_CLIENT_ID: !Ref SpotifyClientId
           SPOTIFY_CLIENT_SECRET: !Ref SpotifyClientSecret
