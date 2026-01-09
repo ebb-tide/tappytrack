@@ -31,7 +31,7 @@ interface Card {
 
 export default function Dashboard() {
     const { data: session, status } = useSession();
-    const [lastTappedCardId, setLastTappedCardId] = useState("123");
+    const [lastTappedCardId, setLastTappedCardId] = useState(null);
     const [cards, setCards] = useState<Card[]>([]);
     const [deviceid, setDeviceId] = useState("");
     const [spotifyPlayers, setSpotifyPlayers] = useState<{ id: string, name: string }[]>([]);
@@ -52,7 +52,14 @@ export default function Dashboard() {
                 const res = await fetch(`/api/get-cards?userid=${session.user.id}`);
                 const data = await res.json();
                 setCards(data.cards || []);
-                setLastTappedCardId(data.lastCard || null);
+                // Only set last tapped card if it's NOT already present in the user's cards
+                const lastCard = data.lastCard || null;
+                if (lastCard) {
+                    const alreadyHasCard = Array.isArray(data.cards) && data.cards.some((c: { id: string }) => c.id === lastCard);
+                    setLastTappedCardId(alreadyHasCard ? null : lastCard);
+                } else {
+                    setLastTappedCardId(null);
+                }
                 setDeviceId(data.deviceid || "");
                 setCurrentSpotifyPlayer(data.player?.name || "");
                 // if (!data.deviceid) {
