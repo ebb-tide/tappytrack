@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+apps/web/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -14,11 +15,14 @@
 /coverage
 
 # next.js
-/.next/
+/.next/*
 /out/
+/apps/web/.next/
+/apps/web/out/
 
 # production
 /build
+/apps/web/build
 
 # misc
 .DS_Store
@@ -32,6 +36,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+apps/web/.env*
 
 # vercel
 .vercel
@@ -41,6 +46,7 @@ yarn-error.log*
 next-env.d.ts
 
 .aws-sam/
-aws/lambdas/*/node_modules/*
+services/aws/.aws-sam/
+services/aws/lambdas/*/node_modules/*
 archive/*
-*device.json*
+devices/pi-pico/*.json

@@ -3,11 +3,11 @@
 # Load environment variables from .env file
 source .env
 
-sam build --template-file aws/template.yaml
+sam build --template-file services/aws/template.yaml
 
 # Deploy using SAM CLI with parameters
 sam deploy \
-  --template-file aws/template.yaml \
+  --template-file services/aws/template.yaml \
   --stack-name tappytrack \
   --parameter-overrides \
     InternalSecret="$INTERNAL_SECRET" \

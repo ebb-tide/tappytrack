@@ -1,9 +1,20 @@
-## deploy aws assets with: 
+## repo layout
+- apps/web: Next.js web app
+- services/aws: SAM template + lambdas
+- devices/pi-pico: device firmware + setup
+- devices/partslist.md: hardware parts list
+
+## deploy aws assets with:
 deploy.sh
 
-# deploy to vercel by pushing to git. 
+# web app
+- cd apps/web
+- npm run dev
 
-# how to set up a new device: 
+# deploy to vercel by pushing to git.
+# web app now lives in apps/web
+
+# how to set up a new device:
 - plug in pi pico
 - drop micropython firmware in USB drive
 - copy python and .json files to device add device.json with device_id, and lambda endpoints
