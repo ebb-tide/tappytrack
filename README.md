@@ -20,6 +20,11 @@ deploy.sh
 - copy python and .json files to device add device.json with device_id, and lambda endpoints
 - several restarts might be required
 
+# how to update device code
+- plug in pi pico
+- open thonny
+- options > interpreter > port or webREPL dropdown > usbmodem1401
+
 # user set up:
 - if wifi/network connection disconnects, the device will enter wifi mode. 
 - Connect to the "tappytrack" wifi network with password 12345678
