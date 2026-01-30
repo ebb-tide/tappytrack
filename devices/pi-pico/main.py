@@ -11,7 +11,7 @@ import urequests
 WIFI_FILE = "wifi.json"
 DEVICE_FILE = "device.json"
 
-piezo = machine.PWM(machine.Pin(15))
+piezo = machine.PWM(machine.Pin(8))
 wlan = network.WLAN(network.STA_IF)
 
 def buzz_on():
@@ -118,11 +118,11 @@ def init_nfc():
             baudrate=1000000,
             polarity=0,
             phase=0,
-            sck=machine.Pin(2),
+            sck=machine.Pin(6),
             mosi=machine.Pin(3),
-            miso=machine.Pin(0))
+            miso=machine.Pin(4))
 
-    cs_pin = machine.Pin(1, machine.Pin.OUT)
+    cs_pin = machine.Pin(5, machine.Pin.OUT)
 
     pn532 = nfc.PN532(spi,cs_pin)
     ic, ver, rev, support = pn532.get_firmware_version()
@@ -208,7 +208,7 @@ if device_id and lambda_url and lambda_secret:
                 if wifi_status == "ap":
                     start_ap_mode()
                     serve_wifi_form(pn532)
-                    return
+                    break
                 if not wifi_status:
                     continue
                 print("Waiting for NFC card...")
