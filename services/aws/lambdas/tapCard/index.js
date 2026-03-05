@@ -7,6 +7,79 @@ const CARDS_TABLE = process.env.CARDS_TABLE;
 const USERS_TABLE = process.env.USERS_TABLE;
 const PLAYER_ID= "92aea6c4165c29ecb355eb798c86571e82ef1fe0";
 
+/**
+ * Resolve the best available Spotify device for playback.
+ * Strategy:
+ *   1. Match by saved device name (names are stable across sessions, unlike IDs)
+ *   2. Match by saved device ID (in case it's still valid)
+ *   3. Fall back to whichever device is currently active
+ *   4. Fall back to the first available device
+ *   5. Fall back to the hardcoded PLAYER_ID constant
+ * Returns { deviceId, deviceName, source } or null if no devices at all.
+ */
+async function resolveDevice(accessToken, user) {
+  let devices = [];
+  try {
+    const resp = await fetch('https://api.spotify.com/v1/me/player/devices', {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      devices = data.devices || [];
+    }
+  } catch (err) {
+    // If device fetch fails, fall through to hardcoded fallback
+  }
+
+  if (devices.length > 0) {
+    // 1. Match by saved device name (most durable — names survive restarts)
+    if (user.playerName) {
+      const byName = devices.find(d => d.name === user.playerName);
+      if (byName) return { deviceId: byName.id, deviceName: byName.name, source: 'name_match' };
+    }
+
+    // 2. Match by saved device ID (may still be valid)
+    if (user.playerid) {
+      const byId = devices.find(d => d.id === user.playerid);
+      if (byId) return { deviceId: byId.id, deviceName: byId.name, source: 'id_match' };
+    }
+
+    // 3. Fall back to currently active device
+    const active = devices.find(d => d.is_active);
+    if (active) return { deviceId: active.id, deviceName: active.name, source: 'active_device' };
+
+    // 4. Fall back to first available device
+    return { deviceId: devices[0].id, deviceName: devices[0].name, source: 'first_available' };
+  }
+
+  // 5. Last resort: hardcoded fallback
+  if (user.playerid) {
+    return { deviceId: user.playerid, deviceName: user.playerName || 'unknown', source: 'saved_fallback' };
+  }
+  return { deviceId: PLAYER_ID, deviceName: 'hardcoded_default', source: 'hardcoded_fallback' };
+}
+
+/**
+ * Transfer playback to a device before issuing play commands.
+ * This wakes up devices that may appear offline and ensures the
+ * device is ready to receive playback.
+ */
+async function transferPlayback(accessToken, deviceId) {
+  const resp = await fetch('https://api.spotify.com/v1/me/player', {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ device_ids: [deviceId], play: false })
+  });
+  // 204 = success, 404 = no active device (ok to ignore)
+  if (!resp.ok && resp.status !== 404) {
+    const errText = await resp.text();
+    throw new Error(`Transfer playback failed: ${resp.status} ${errText}`);
+  }
+}
+
 async function recordUserError(ddbDocClient, userid, message) {
   if (!userid) return;
   try {
@@ -158,13 +231,34 @@ exports.handler = async (event) => {
       }
     }
 
-    // 6. Play the song on the specified device using Spotify API
+    // 6. Resolve device, transfer playback, then play
     let playStatus = 'not attempted';
+    let deviceSource = 'none';
     if (accessToken && (card.spotifyURL || card.spotifyUrl)) {
       try {
+        // Resolve the best available device
+        const device = await resolveDevice(accessToken, user);
+        deviceSource = device.source;
+
+        // Update saved playerid if we resolved by name and the ID changed
+        if (device.source === 'name_match' && device.deviceId !== user.playerid) {
+          try {
+            await ddbDocClient.send(new UpdateCommand({
+              TableName: USERS_TABLE,
+              Key: { userid },
+              UpdateExpression: 'SET playerid = :pid',
+              ExpressionAttributeValues: { ':pid': device.deviceId }
+            }));
+          } catch (_) { /* non-critical, continue */ }
+        }
+
+        // Transfer playback to wake up the device
+        await transferPlayback(accessToken, device.deviceId);
+
+        // Play the track
         const spotifyURL = card.spotifyURL || card.spotifyUrl;
-        const uri = extractSpotifyTrackId(spotifyURL)
-        const playResp = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${user.playerid || PLAYER_ID}`,
+        const uri = extractSpotifyTrackId(spotifyURL);
+        const playResp = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${device.deviceId}`,
           {
             method: 'PUT',
             headers: {
@@ -176,7 +270,7 @@ exports.handler = async (event) => {
         );
         if (!playResp.ok) {
           const errText = await playResp.text();
-          throw new Error(`Spotify play failed: ${playResp.status} ${errText}`);
+          throw new Error(`Spotify play failed (device: ${device.deviceName}, source: ${device.source}): ${playResp.status} ${errText}`);
         }
         playStatus = 'success';
       } catch (err) {
@@ -186,7 +280,7 @@ exports.handler = async (event) => {
       }
     }
 
-    return { statusCode: 200, body: JSON.stringify({ message: "Tap recorded and song played", spotifyURL: card.spotifyURL || card.spotifyUrl, playStatus }) };
+    return { statusCode: 200, body: JSON.stringify({ message: "Tap recorded and song played", spotifyURL: card.spotifyURL || card.spotifyUrl, playStatus, deviceSource }) };
   }
   return { statusCode: 200, body: JSON.stringify({ message: "Tap recorded- new card" }) };
 
