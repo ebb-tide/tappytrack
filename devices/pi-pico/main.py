@@ -70,6 +70,17 @@ def read_device_config():
     except:
         return None, None, None
 
+def url_decode(s):
+    s = s.replace('+', ' ')
+    parts = s.split('%')
+    result = parts[0]
+    for part in parts[1:]:
+        try:
+            result += chr(int(part[:2], 16)) + part[2:]
+        except (ValueError, IndexError):
+            result += '%' + part
+    return result
+
 def save_wifi_config(ssid, password):
     with open(WIFI_FILE, "w") as f:
         json.dump({"ssid": ssid, "password": password}, f)
@@ -173,7 +184,7 @@ HTTP/1.1 200 OK
         if "ssid=" in request:
             try:
                 params = request.split(' ', 2)[1].split('?', 1)[-1].split('&')
-                param_dict = {kv.split('=')[0]: kv.split('=')[1].replace('%20', ' ') for kv in params}
+                param_dict = {kv.split('=')[0]: url_decode(kv.split('=')[1]) for kv in params}
                 ssid = param_dict.get("ssid", "")
                 password = param_dict.get("password", "")
                 print("Saving Wi-Fi credentials.")
@@ -202,7 +213,7 @@ if device_id and lambda_url and lambda_secret:
 
             pn532 = init_nfc()
             wifi_failure_times = []
-
+            never_ran = True
             while True:
                 wifi_status = ensure_wifi(ssid, password, wifi_failure_times)
                 if wifi_status == "ap":
@@ -211,7 +222,9 @@ if device_id and lambda_url and lambda_secret:
                     break
                 if not wifi_status:
                     continue
-                print("Waiting for NFC card...")
+                if never_ran:
+                    print("Waiting for NFC card...")
+                    never_ran = False
                 uid = pn532.read_passive_target(timeout=1)
                 if uid is None:
                     continue
