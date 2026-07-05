@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { upstreamJson } from '@/lib/upstream';
 
 export async function DELETE(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -22,6 +23,6 @@ export async function DELETE(req: NextRequest) {
     body: JSON.stringify({ userid, cardID }),
   });
 
-  const data = await lambdaRes.json();
+  const data = await upstreamJson(lambdaRes);
   return NextResponse.json(data, { status: lambdaRes.status });
 }
