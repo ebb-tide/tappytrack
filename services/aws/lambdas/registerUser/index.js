@@ -2,6 +2,23 @@ const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
 
 const USERS_TABLE = process.env.USERS_TABLE;
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+
+// Best-effort Telegram ping; must never fail the main flow.
+async function notify(text) {
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
+  try {
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text }),
+      signal: AbortSignal.timeout(3000)
+    });
+  } catch (err) {
+    console.error('Telegram notify failed:', err);
+  }
+}
 
 async function recordUserError(ddbDocClient, userid, message) {
   if (!userid) return;
@@ -75,6 +92,7 @@ exports.handler = async (event) => {
         }));
       }
       console.log('User already exists, tokens refreshed:', userid);
+      await notify(`🔑 ${name || userid} signed in`);
       return { statusCode: 200, body: JSON.stringify({ message: 'User already exists' }) };
     }
 
@@ -93,6 +111,7 @@ exports.handler = async (event) => {
     };
     await ddbDocClient.send(new PutCommand(putParams))
     console.log('Inserted new user:', userid);
+    await notify(`👋 New user signed up: ${name || userid} (${userid})`);
     return { statusCode: 201, body: JSON.stringify({ message: 'User created' }) };
   } catch (err) {
     console.error('DynamoDB error:', err);
