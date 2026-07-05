@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { upstreamJson } from '@/lib/upstream';
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -18,6 +19,6 @@ export async function GET() {
     },
   });
 
-  const data = await res.json();
+  const data = await upstreamJson(res);
   return NextResponse.json(data, { status: res.status });
 }

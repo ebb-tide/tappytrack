@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { upstreamJson } from '@/lib/upstream';
 
 // This API route proxies to your Lambda endpoint
 export async function GET() {
@@ -20,11 +21,10 @@ export async function GET() {
     },
   });
 
+  const response = await upstreamJson(lambdaRes);
   if (!lambdaRes.ok) {
-    return NextResponse.json({ error: 'Failed to fetch cards' }, { status: 500 });
+    return NextResponse.json(response, { status: lambdaRes.status });
   }
-
-  const response = await lambdaRes.json();
 
   const cards = response.cards || [];
   const lastCard = response.lastCard || null;
