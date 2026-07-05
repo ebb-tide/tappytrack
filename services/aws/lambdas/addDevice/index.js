@@ -3,6 +3,23 @@ const { DynamoDBDocumentClient, UpdateCommand, PutCommand } = require("@aws-sdk/
 
 const USERS_TABLE = process.env.USERS_TABLE;
 const DEVICES_TABLE = process.env.DEVICES_TABLE;
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+
+// Best-effort Telegram ping; must never fail the main flow.
+async function notify(text) {
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
+  try {
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text }),
+      signal: AbortSignal.timeout(3000)
+    });
+  } catch (err) {
+    console.error('Telegram notify failed:', err);
+  }
+}
 
 if (!DEVICES_TABLE) {
   throw new Error("DEVICES_TABLE environment variable is not set");
@@ -66,6 +83,7 @@ exports.handler = async (event) => {
       TableName: DEVICES_TABLE,
       Item: { deviceid, userid }
     }));
+    await notify(`📟 Device ${deviceid} claimed by ${userid}`);
     return { statusCode: 200, body: JSON.stringify({ message: "Device ID added to user and devices table" }) };
   } catch (err) {
     const message = err.message || 'Failed to add device';

@@ -5,6 +5,23 @@ const CARDS_TABLE = process.env.CARDS_TABLE;
 const USERS_TABLE = process.env.USERS_TABLE;
 const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
 const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+
+// Best-effort Telegram ping; must never fail the main flow.
+async function notify(text) {
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
+  try {
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text }),
+      signal: AbortSignal.timeout(3000)
+    });
+  } catch (err) {
+    console.error('Telegram notify failed:', err);
+  }
+}
 
 function extractSpotifyTrackId(url) {
   const match = url.match(/spotify\.com\/track\/([a-zA-Z0-9]+)/);
@@ -93,6 +110,8 @@ exports.handler = async (event) => {
       TableName: CARDS_TABLE,
       Item: { userid, cardID, spotifyURL, trackName, artistName }
     }));
+    const trackLabel = trackName ? `${trackName}${artistName ? ' — ' + artistName : ''}` : spotifyURL;
+    await notify(`🎵 ${userid} added a card: ${trackLabel}`);
     return { statusCode: 201, body: JSON.stringify({ message: "Card added", trackName, artistName }) };
   } catch (err) {
     const message = err.message || 'Failed to add card';

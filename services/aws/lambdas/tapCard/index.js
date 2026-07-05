@@ -4,6 +4,23 @@ const { DynamoDBDocumentClient, GetCommand, UpdateCommand } = require("@aws-sdk/
 const DEVICES_TABLE = process.env.DEVICES_TABLE;
 const CARDS_TABLE = process.env.CARDS_TABLE;
 const USERS_TABLE = process.env.USERS_TABLE;
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+
+// Best-effort Telegram ping; must never fail the main flow.
+async function notify(text) {
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
+  try {
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text }),
+      signal: AbortSignal.timeout(3000)
+    });
+  } catch (err) {
+    console.error('Telegram notify failed:', err);
+  }
+}
 
 function spotifyError(message, status) {
   const err = new Error(message);
@@ -230,6 +247,7 @@ exports.handler = async (event) => {
   }
 
   if (!card) {
+    await notify(`❓ New card ${cardID} tapped on device ${deviceid} — assign it in the dashboard`);
     return { statusCode: 200, body: JSON.stringify({ message: "Tap recorded- new card" }) };
   }
 

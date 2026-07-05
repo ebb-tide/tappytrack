@@ -7,6 +7,13 @@
 ## deploy aws assets with:
 deploy.sh
 
+## telegram notifications (optional):
+- message @BotFather in Telegram, /newbot, copy the bot token
+- open a chat with your new bot and press Start
+- get your numeric chat id from @userinfobot
+- add TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID to .env, then run deploy.sh
+- pings on: sign-in, new user, card added, device claimed, unknown card tapped
+
 # web app
 - cd apps/web
 - npm run dev

@@ -12,4 +12,6 @@ sam deploy \
   --parameter-overrides \
     InternalSecret="$INTERNAL_SECRET" \
     SpotifyClientId="$SPOTIFY_CLIENT_ID" \
-    SpotifyClientSecret="$SPOTIFY_CLIENT_SECRET" 
+    SpotifyClientSecret="$SPOTIFY_CLIENT_SECRET" \
+    TelegramBotToken="$TELEGRAM_BOT_TOKEN" \
+    TelegramChatId="$TELEGRAM_CHAT_ID"
