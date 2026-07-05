@@ -24,10 +24,10 @@ async function recordUserError(ddbDocClient, userid, message) {
 }
 
 exports.handler = async (event) => {
-//   const secret = event.headers && event.headers["x-internal"];
-//   if (secret !== process.env.INTERNAL_SECRET) {
-//     return { statusCode: 403, body: "Forbidden" };
-//   }
+  const secret = event.headers && event.headers["x-internal"];
+  if (secret !== process.env.INTERNAL_SECRET) {
+    return { statusCode: 403, body: "Forbidden" };
+  }
 
   const userid = event.queryStringParameters && event.queryStringParameters.userid;
   if (!userid) {

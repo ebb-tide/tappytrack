@@ -105,10 +105,10 @@ function extractSpotifyTrackId(url) {
 }
 
 exports.handler = async (event) => {
-//   const secret = event.headers && event.headers["x-internal"];
-//   if (secret !== process.env.INTERNAL_SECRET) {
-//     return { statusCode: 403, body: "Forbidden" };
-//   }
+  const secret = event.headers && event.headers["x-internal"];
+  if (secret !== process.env.INTERNAL_SECRET) {
+    return { statusCode: 403, body: "Forbidden" };
+  }
 
   let data;
   try {

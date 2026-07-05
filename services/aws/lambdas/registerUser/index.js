@@ -23,8 +23,8 @@ async function recordUserError(ddbDocClient, userid, message) {
 }
 
 exports.handler = async (event) => {
+  // Don't log the event: the body carries Spotify access/refresh tokens.
   console.log('registerUser Lambda invoked');
-  console.log('Event:', JSON.stringify(event));
 
   const secret = event.headers["x-internal"]
 
@@ -58,10 +58,23 @@ exports.handler = async (event) => {
 
   try {
     const result = await ddbDocClient.send(new GetCommand(getParams));
-    console.log('DynamoDB get result:', JSON.stringify(result));
     if (result.Item) {
-      // User already exists
-      console.log('User already exists:', userid);
+      // User exists: refresh the stored tokens so a re-login can recover
+      // from a revoked or rotated refresh token.
+      const updates = [];
+      const values = {};
+      if (accessToken) { updates.push('accessToken = :at'); values[':at'] = accessToken; }
+      if (refreshToken) { updates.push('refreshToken = :rt'); values[':rt'] = refreshToken; }
+      if (expiresAt) { updates.push('expiresAt = :ea'); values[':ea'] = expiresAt; }
+      if (updates.length > 0) {
+        await ddbDocClient.send(new UpdateCommand({
+          TableName: USERS_TABLE,
+          Key: { userid },
+          UpdateExpression: 'SET ' + updates.join(', '),
+          ExpressionAttributeValues: values
+        }));
+      }
+      console.log('User already exists, tokens refreshed:', userid);
       return { statusCode: 200, body: JSON.stringify({ message: 'User already exists' }) };
     }
 

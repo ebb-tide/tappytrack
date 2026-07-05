@@ -1,9 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
-export async function GET(req: NextRequest) {
-  const userid = req.nextUrl.searchParams.get('userid');
+export async function GET() {
+  const session = await getServerSession(authOptions);
+  const userid = session?.user?.id;
   if (!userid) {
-    return NextResponse.json({ error: 'Missing userid' }, { status: 400 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const LAMBDA_URL = process.env.LAMBDA_URL || '';
