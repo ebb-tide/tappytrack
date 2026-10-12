@@ -41,6 +41,8 @@ export default function Dashboard() {
     const [cards, setCards] = useState<Card[]>([]);
     const [deviceid, setDeviceId] = useState("");
     const [spotifyPlayers, setSpotifyPlayers] = useState<{ id: string, name: string }[]>([]);
+    const [playersLoading, setPlayersLoading] = useState(true);
+    const [playersError, setPlayersError] = useState<string | null>(null);
     const [currentSpotifyPlayer, setCurrentSpotifyPlayer] = useState<string>("");
     const [lastError, setLastError] = useState<LastError | null>(null);
 
@@ -89,16 +91,28 @@ export default function Dashboard() {
     // Fetch Spotify players for the user
     const fetchSpotifyPlayers = async () => {
         if (session?.user?.id) {
+            setPlayersLoading(true);
+            setPlayersError(null);
             try {
                 const res = await fetch(`/api/get-players?userid=${session.user.id}`);
                 const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || `Could not load Spotify devices (${res.status}).`);
+                }
                 if (Array.isArray(data.players)) {
-                    setSpotifyPlayers(data.players.map((d: { id: string; name: string }) => ({ id: d.id, name: d.name })));
-                    setSelectedSpotifyPlayer(data.players.length > 0 ? data.players[0].id : "");
+                    const players = data.players.filter((d: { id: string | null }) => d.id);
+                    setSpotifyPlayers(players.map((d: { id: string; name: string }) => ({ id: d.id, name: d.name })));
+                    setSelectedSpotifyPlayer(players.length > 0 ? players[0].id : "");
+                } else {
+                    throw new Error('Could not load Spotify devices. Please try again.');
                 }
             } catch (err) {
                 console.error("Error fetching Spotify players:", err);
                 setSpotifyPlayers([]);
+                setSelectedSpotifyPlayer("");
+                setPlayersError(err instanceof Error ? err.message : 'Could not load Spotify devices.');
+            } finally {
+                setPlayersLoading(false);
             }
         }
     };
@@ -277,6 +291,7 @@ export default function Dashboard() {
                                         <Select
                                             value={selectedSpotifyPlayer}
                                             onValueChange={setSelectedSpotifyPlayer}
+                                            disabled={playersLoading || spotifyPlayers.length === 0}
                                         >
                                             <SelectTrigger
                                                 id="spotify-player-select"
@@ -295,12 +310,20 @@ export default function Dashboard() {
                                         <Button
                                             onClick={handleSetSpotifyPlayer}
                                             className="text-emerald-800 bg-emerald-300 hover:bg-emerald-400"
-                                            disabled={!selectedSpotifyPlayer}
+                                            disabled={playersLoading || !selectedSpotifyPlayer}
                                         >
                                             Set
                                         </Button>
                                     </div>
-                                    <div className="flex gap-2">    </div>
+                                    {playersLoading && <p role="status" className="text-sm text-gray-600">Loading Spotify devices…</p>}
+                                    {playersError && <p role="alert" className="text-sm text-red-700">{playersError}</p>}
+                                    {!playersLoading && !playersError && spotifyPlayers.length === 0 && (
+                                        <p className="text-sm text-gray-600">No devices found. Open Spotify on your iPhone, play a song, then refresh devices.</p>
+                                    )}
+                                    <div className="flex flex-wrap gap-2">
+                                        <Button variant="outline" onClick={fetchSpotifyPlayers} disabled={playersLoading}>Refresh devices</Button>
+                                        {playersError && <Button variant="outline" onClick={() => signIn('spotify', { callbackUrl: '/dashboard' })}>Reconnect Spotify</Button>}
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>
