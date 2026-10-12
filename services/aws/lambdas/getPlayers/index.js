@@ -98,6 +98,12 @@ exports.handler = async (event) => {
     }
   }
 
+  if (!accessToken) {
+    const message = 'Spotify is not connected. Reconnect Spotify to load your devices.';
+    await recordUserError(ddbDocClient, userid, message);
+    return { statusCode: 401, body: JSON.stringify({ error: message }) };
+  }
+
   // Fetch available players from Spotify
   let players = [];
   if (accessToken) {
@@ -105,13 +111,29 @@ exports.handler = async (event) => {
       const resp = await fetch('https://api.spotify.com/v1/me/player/devices', {
         headers: { 'Authorization': `Bearer ${accessToken}` }
       });
-      if (!resp.ok) throw new Error('Spotify players fetch failed');
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        const detail = typeof data.error?.message === 'string' ? data.error.message : '';
+        let message = `Could not load Spotify devices (Spotify ${resp.status}).`;
+        if (/permissions? missing|insufficient.*scope/i.test(detail)) {
+          message = 'Spotify permissions are missing. Reconnect Spotify and allow access to your devices and playback.';
+        } else if (resp.status === 401) {
+          message = 'Your Spotify connection has expired. Reconnect Spotify to load your devices.';
+        } else if (resp.status === 403) {
+          message = 'Spotify denied access to your devices. Reconnect Spotify; if this continues, check the Spotify app access settings.';
+        } else if (resp.status === 429) {
+          message = 'Spotify is receiving too many requests. Wait a little, then refresh devices.';
+        }
+        const error = new Error(message);
+        error.status = resp.status;
+        throw error;
+      }
       const data = await resp.json();
       players = data.devices || [];
     } catch (err) {
-      const message = 'Spotify players fetch failed: ' + err.message;
+      const message = err.status ? err.message : 'Could not load Spotify devices. Please try again.';
       await recordUserError(ddbDocClient, userid, message);
-      return { statusCode: 500, body: JSON.stringify({ error: message }) };
+      return { statusCode: err.status || 502, body: JSON.stringify({ error: message }) };
     }
   }
 
