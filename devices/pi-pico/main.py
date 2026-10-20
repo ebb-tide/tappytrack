@@ -15,6 +15,7 @@ BOOT_WIFI_ATTEMPTS = 2               # quick attempts before falling back to the
 AP_RETRY_SAVED_MS = 5 * 60 * 1000    # reboot out of the portal to retry saved creds
 AP_CLIENT_IDLE_MS = 2 * 60 * 1000    # don't reboot the portal while someone is using it
 TAP_DEBOUNCE_MS = 5000
+NFC_POLL_TIMEOUT_MS = 1000  # PN532 driver timeouts are milliseconds.
 WATCHDOG_MS = 8000
 HTTP_DEADLINE_MS = 6500  # Lambda gets 5s; leave time for the network and recovery.
 
@@ -221,7 +222,7 @@ HTTP/1.1 200 OK
             cl, addr = s.accept()
         except OSError:
             if pn532:
-                uid = pn532.read_passive_target(timeout=1)
+                uid = pn532.read_passive_target(timeout=NFC_POLL_TIMEOUT_MS)
                 if uid:
                     print("NFC tap while offline. Buzzing error.")
                     buzz_error_wifi()
@@ -270,7 +271,7 @@ def tap_loop(pn532, ssid, password, device_id, lambda_url, lambda_secret):
         if not wifi_status:
             continue
 
-        uid = pn532.read_passive_target(timeout=1)
+        uid = pn532.read_passive_target(timeout=NFC_POLL_TIMEOUT_MS)
         if uid is None:
             continue
 

@@ -8,6 +8,8 @@ import time
 import machine
 import NFC_PN532 as nfc
 
+NFC_TEST_TIMEOUT_MS = 5000
+
 
 def check_piezo():
     print("\n--- Piezo Buzzer (GPIO 8) ---")
@@ -105,8 +107,8 @@ def check_nfc():
     try:
         pn532.SAM_configuration()
         print("    SAM configured OK")
-        print("    Tap a card to test read (5s timeout)...")
-        uid = pn532.read_passive_target(timeout=5)
+        print("    Tap a card to test read ({} ms response timeout)...".format(NFC_TEST_TIMEOUT_MS))
+        uid = pn532.read_passive_target(timeout=NFC_TEST_TIMEOUT_MS)
         if uid:
             uid_str = "".join(["%02X" % b for b in uid])
             print("    Card detected! UID:", uid_str)

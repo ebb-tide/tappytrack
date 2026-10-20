@@ -14,6 +14,8 @@
 """
 Micropython PN532 NFC/RFID control library (SPI)
 https://github.com/Carglglz/NFC_PN532_SPI
+
+All timeout arguments in this driver are in milliseconds.
 """
 
 import time
@@ -257,9 +259,10 @@ class PN532:
         """Send specified command to the PN532 and expect up to response_length
         bytes back in a response.  Note that less than the expected bytes might
         be returned!  Params can optionally specify an array of bytes to send as
-        parameters to the function call.  Will wait up to timeout seconds
-        for a response and return a bytearray of response bytes, or None if no
-        response is available within the timeout.
+        parameters to the function call.  Timeout is in milliseconds for each
+        readiness wait: first the ACK, then the command response.  Total call
+        time can include both waits plus SPI I/O.  Returns a bytearray of
+        response bytes, or None if either readiness wait times out.
         """
         # Build frame data with command and parameters.
         data = bytearray(2+len(params))
@@ -317,8 +320,9 @@ class PN532:
 
     def read_passive_target(self, card_baud=_MIFARE_ISO14443A, timeout=1000):
         """Wait for a MiFare card to be available and return its UID when found.
-        Will wait up to timeout seconds and return None if no card is found,
-        otherwise a bytearray with the UID of the found card is returned.
+        Timeout is in milliseconds for each ACK/response readiness wait, not
+        seconds or an overall call deadline (see call_function).  Returns None
+        if no card is found before timeout, otherwise a bytearray with its UID.
         """
         # Send passive read command for 1 card.  Expect at most a 7 byte UUID.
         try:

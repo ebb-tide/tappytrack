@@ -280,7 +280,8 @@ class TapLoopTests(unittest.TestCase):
 
         node = next(node for node in ast.parse((ROOT / "main.py").read_text()).body
                     if isinstance(node, ast.FunctionDef) and node.name == "tap_loop")
-        namespace = {"time": clock, "TAP_DEBOUNCE_MS": 5000, "json": __import__("json"),
+        namespace = {"time": clock, "TAP_DEBOUNCE_MS": 5000, "NFC_POLL_TIMEOUT_MS": 1000,
+                     "json": __import__("json"),
                      "feed": lambda: None, "ensure_wifi": lambda *args: True,
                      "buzz_on": lambda: None, "buzz_error_lambda": lambda: None,
                      "post_with_retry": post}
