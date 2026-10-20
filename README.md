@@ -22,6 +22,19 @@ deploy.sh
 ## backend tests:
 - `node --test services/aws/tests/*.test.js services/aws/lambdas/getPlayers/index.test.js`
 
+## tap deadlines:
+- tap processing shares a 4.3-second work budget (Spotify calls at most 2 seconds,
+  database calls at most 1 second, no SDK retries); errors return HTTP 504 before
+  the tap Lambda's 5-second limit, with 700 ms reserved for error recording and response
+- the device uses one 6.5-second HTTP deadline across connection, deferred TLS,
+  request writes, response headers, and any safe connection retry; it closes the
+  connection after receiving the status rather than waiting for a response body
+- the 8-second hardware watchdog still recovers native DNS or hardware hangs;
+  MicroPython's blocking native DNS lookup cannot be cancelled by this HTTP client
+- upload both `main.py` and `tap_http.py` to existing devices for the HTTP deadline;
+  no changes to `device.json`, Wi-Fi configuration, or the base firmware are needed
+- firmware tests: `python3 -B -m unittest discover -s devices/pi-pico/tests -v`
+
 # web app
 - cd apps/web
 - npm run dev

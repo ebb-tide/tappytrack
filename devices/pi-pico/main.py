@@ -6,7 +6,7 @@ import os
 import machine
 import NFC_PN532 as nfc
 from machine import reset
-import urequests
+import tap_http
 
 WIFI_FILE = "wifi.json"
 DEVICE_FILE = "device.json"
@@ -15,6 +15,8 @@ BOOT_WIFI_ATTEMPTS = 2               # quick attempts before falling back to the
 AP_RETRY_SAVED_MS = 5 * 60 * 1000    # reboot out of the portal to retry saved creds
 AP_CLIENT_IDLE_MS = 2 * 60 * 1000    # don't reboot the portal while someone is using it
 TAP_DEBOUNCE_MS = 5000
+WATCHDOG_MS = 8000
+HTTP_DEADLINE_MS = 6500  # Lambda gets 5s; leave time for the network and recovery.
 
 piezo = machine.PWM(machine.Pin(8))
 wlan = network.WLAN(network.STA_IF)
@@ -58,15 +60,22 @@ def buzz_error_lambda():
 
 def post_with_retry(url, payload, headers, retries=1, delay_s=0.5):
     last_exc = None
+    deadline = time.ticks_add(time.ticks_ms(), HTTP_DEADLINE_MS)
     for attempt in range(retries + 1):
         try:
             feed()
-            r = urequests.post(url, data=payload, headers=headers)
-            return r, None
+            status = tap_http.post_status(url, payload, headers, deadline)
+            return status, None
         except Exception as e:
             last_exc = e
-            if attempt < retries:
-                sleep_fed(delay_s)
+            # Retry connection failures only. Once a tap might have been sent,
+            # a timeout/lost response must not issue playback a second time.
+            if not getattr(e, "safe_to_retry", False):
+                break
+            remaining = time.ticks_diff(deadline, time.ticks_ms())
+            if attempt >= retries or remaining <= int(delay_s * 1000):
+                break
+            sleep_fed(delay_s)
     return None, last_exc
 
 def read_wifi_config():
@@ -288,22 +297,23 @@ def tap_loop(pn532, ssid, password, device_id, lambda_url, lambda_secret):
                 "x-internal": lambda_secret
             }
             lambda_endpoint = lambda_url + "/tap"
-            r, err = post_with_retry(lambda_endpoint, payload, headers, retries=1, delay_s=0.5)
+            status, err = post_with_retry(lambda_endpoint, payload, headers, retries=1, delay_s=0.5)
+            feed()
             if err:
-                print("Request failed after retry:", err)
+                print("Tap request failed:", err)
                 buzz_error_lambda()
             else:
-                try:
-                    print("Response status:", r.status_code)
-                    print("Response text:", r.text)
-                    if r.status_code < 200 or r.status_code >= 300:
-                        print("Lambda error status. Buzzing error.")
-                        buzz_error_lambda()
-                finally:
-                    r.close()
+                print("Response status:", status)
+                if status < 200 or status >= 300:
+                    print("Lambda error status. Buzzing error.")
+                    buzz_error_lambda()
         except Exception as e:
             print("Request failed:", e)
             buzz_error_lambda()
+        finally:
+            # Slow requests must not expire debounce while the card is still
+            # held on the reader and accidentally issue playback again.
+            last_seen_ms = time.ticks_ms()
 
 def run():
     global wdt
@@ -315,10 +325,9 @@ def run():
 
     print("Using device ID:", device_id)
 
-    # Watchdog: reboots the device if anything hangs (e.g. a stalled HTTP
-    # request — urequests has no timeout). Not started on unconfigured
-    # devices so they stay at the REPL for setup.
-    wdt = machine.WDT(timeout=8000)
+    # HTTP I/O normally fails before this fires. The watchdog still recovers
+    # native DNS or hardware hangs. Unconfigured devices stay at the REPL.
+    wdt = machine.WDT(timeout=WATCHDOG_MS)
 
     ssid, password = read_wifi_config()
     if not (ssid and password):
