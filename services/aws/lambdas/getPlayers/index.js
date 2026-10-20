@@ -3,6 +3,40 @@ const { DynamoDBDocumentClient, GetCommand, UpdateCommand } = require("@aws-sdk/
 
 const USERS_TABLE = process.env.USERS_TABLE;
 
+/**
+ * Refresh the Spotify access token and persist it. Spotify occasionally
+ * rotates the refresh token in the response; store the new one or the
+ * account eventually becomes unrecoverable.
+ */
+async function refreshSpotifyToken(ddbDocClient, userid, refreshToken) {
+  const params = new URLSearchParams();
+  params.append('grant_type', 'refresh_token');
+  params.append('refresh_token', refreshToken);
+  params.append('client_id', process.env.SPOTIFY_CLIENT_ID);
+  params.append('client_secret', process.env.SPOTIFY_CLIENT_SECRET);
+  const resp = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params
+  });
+  if (!resp.ok) throw new Error('Failed to refresh Spotify token');
+  const tokenData = await resp.json();
+  const accessToken = tokenData.access_token;
+  const expiresAt = Math.floor(Date.now() / 1000) + tokenData.expires_in;
+  const newRefreshToken = tokenData.refresh_token || refreshToken;
+  await ddbDocClient.send(new UpdateCommand({
+    TableName: USERS_TABLE,
+    Key: { userid },
+    UpdateExpression: 'SET accessToken = :at, expiresAt = :ea, refreshToken = :rt',
+    ExpressionAttributeValues: {
+      ':at': accessToken,
+      ':ea': expiresAt,
+      ':rt': newRefreshToken
+    }
+  }));
+  return { accessToken, refreshToken: newRefreshToken, expiresAt };
+}
+
 async function recordUserError(ddbDocClient, userid, message) {
   if (!userid) return;
   try {
@@ -61,36 +95,15 @@ exports.handler = async (event) => {
   // Spotify API: get accessToken, refresh if needed, fetch devices
   let accessToken = user.accessToken;
   let refreshToken = user.refreshToken;
-  let expiresAt = user.expiresAt;
+  const expiresAt = user.expiresAt;
   const now = Math.floor(Date.now() / 1000);
 
   // If token expired, refresh
   if (expiresAt && now >= expiresAt && refreshToken) {
     try {
-      const params = new URLSearchParams();
-      params.append('grant_type', 'refresh_token');
-      params.append('refresh_token', refreshToken);
-      params.append('client_id', process.env.SPOTIFY_CLIENT_ID);
-      params.append('client_secret', process.env.SPOTIFY_CLIENT_SECRET);
-      const resp = await fetch('https://accounts.spotify.com/api/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: params
-      });
-      if (!resp.ok) throw new Error('Failed to refresh Spotify token');
-      const tokenData = await resp.json();
-      accessToken = tokenData.access_token;
-      expiresAt = now + tokenData.expires_in;
-      // Optionally update user record with new token
-      await ddbDocClient.send(new UpdateCommand({
-        TableName: USERS_TABLE,
-        Key: { userid },
-        UpdateExpression: 'SET accessToken = :at, expiresAt = :ea',
-        ExpressionAttributeValues: {
-          ':at': accessToken,
-          ':ea': expiresAt
-        }
-      }));
+      const refreshed = await refreshSpotifyToken(ddbDocClient, userid, refreshToken);
+      accessToken = refreshed.accessToken;
+      refreshToken = refreshed.refreshToken;
     } catch (err) {
       const message = 'Spotify token refresh failed: ' + err.message;
       await recordUserError(ddbDocClient, userid, message);
@@ -108,9 +121,17 @@ exports.handler = async (event) => {
   let players = [];
   if (accessToken) {
     try {
-      const resp = await fetch('https://api.spotify.com/v1/me/player/devices', {
+      const fetchDevices = () => fetch('https://api.spotify.com/v1/me/player/devices', {
         headers: { 'Authorization': `Bearer ${accessToken}` }
       });
+      let resp = await fetchDevices();
+      // A stale or missing expiresAt can hide an expired token. Retry only once.
+      if (resp.status === 401 && refreshToken) {
+        const refreshed = await refreshSpotifyToken(ddbDocClient, userid, refreshToken);
+        accessToken = refreshed.accessToken;
+        refreshToken = refreshed.refreshToken;
+        resp = await fetchDevices();
+      }
       if (!resp.ok) {
         const data = await resp.json().catch(() => ({}));
         const detail = typeof data.error?.message === 'string' ? data.error.message : '';
