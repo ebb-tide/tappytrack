@@ -20,7 +20,47 @@ Parameters:
     Type: String
     Default: ''
 
+Conditions:
+  TelegramEnabled: !And
+    - !Not [!Equals [!Ref TelegramBotToken, '']]
+    - !Not [!Equals [!Ref TelegramChatId, '']]
+
 Resources:
+  NotificationClientLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      ContentUri: layers/notifications/
+      CompatibleRuntimes:
+        - nodejs22.x
+
+  NotificationFailureQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+
+  TelegramNotifyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: tappytrackTelegramNotify
+      Handler: index.handler
+      Runtime: nodejs22.x
+      CodeUri: lambdas/telegramNotify/
+      Timeout: 5
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Environment:
+        Variables:
+          TELEGRAM_BOT_TOKEN: !Ref TelegramBotToken
+          TELEGRAM_CHAT_ID: !Ref TelegramChatId
+      EventInvokeConfig:
+        MaximumEventAgeInSeconds: 3600
+        MaximumRetryAttempts: 2
+        DestinationConfig:
+          OnFailure:
+            Type: SQS
+            Destination: !GetAtt NotificationFailureQueue.Arn
+
   UsersTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -118,16 +158,19 @@ Resources:
       Handler: index.handler
       Runtime: nodejs22.x
       CodeUri: lambdas/registerUser/
+      Layers:
+        - !Ref NotificationClientLayer
       Policies:
         - AWSLambdaBasicExecutionRole
+        - LambdaInvokePolicy:
+            FunctionName: !Ref TelegramNotifyFunction
         - DynamoDBCrudPolicy:
             TableName: tappyusers
       Environment:
         Variables:
           USERS_TABLE: tappyusers
           INTERNAL_SECRET: !Ref InternalSecret
-          TELEGRAM_BOT_TOKEN: !Ref TelegramBotToken
-          TELEGRAM_CHAT_ID: !Ref TelegramChatId
+          NOTIFICATION_FUNCTION: !If [TelegramEnabled, !Ref TelegramNotifyFunction, '']
       Events:
         Api:
           Type: Api
@@ -142,8 +185,12 @@ Resources:
       Handler: index.handler
       Runtime: nodejs22.x
       CodeUri: lambdas/addDevice/
+      Layers:
+        - !Ref NotificationClientLayer
       Policies:
         - AWSLambdaBasicExecutionRole
+        - LambdaInvokePolicy:
+            FunctionName: !Ref TelegramNotifyFunction
         - DynamoDBCrudPolicy:
             TableName: tappyusers
         - DynamoDBCrudPolicy:
@@ -153,8 +200,7 @@ Resources:
           USERS_TABLE: tappyusers
           DEVICES_TABLE: tappydevices
           INTERNAL_SECRET: !Ref InternalSecret
-          TELEGRAM_BOT_TOKEN: !Ref TelegramBotToken
-          TELEGRAM_CHAT_ID: !Ref TelegramChatId
+          NOTIFICATION_FUNCTION: !If [TelegramEnabled, !Ref TelegramNotifyFunction, '']
       Events:
         Api:
           Type: Api
@@ -169,8 +215,12 @@ Resources:
       Handler: index.handler
       Runtime: nodejs22.x
       CodeUri: lambdas/addCard/
+      Layers:
+        - !Ref NotificationClientLayer
       Policies:
         - AWSLambdaBasicExecutionRole
+        - LambdaInvokePolicy:
+            FunctionName: !Ref TelegramNotifyFunction
         - DynamoDBCrudPolicy:
             TableName: tappycards
         - DynamoDBCrudPolicy:
@@ -182,8 +232,7 @@ Resources:
           INTERNAL_SECRET: !Ref InternalSecret
           SPOTIFY_CLIENT_ID: !Ref SpotifyClientId
           SPOTIFY_CLIENT_SECRET: !Ref SpotifyClientSecret
-          TELEGRAM_BOT_TOKEN: !Ref TelegramBotToken
-          TELEGRAM_CHAT_ID: !Ref TelegramChatId
+          NOTIFICATION_FUNCTION: !If [TelegramEnabled, !Ref TelegramNotifyFunction, '']
       Events:
         Api:
           Type: Api
@@ -198,8 +247,12 @@ Resources:
       Handler: index.handler
       Runtime: nodejs22.x
       CodeUri: lambdas/tapCard/
+      Layers:
+        - !Ref NotificationClientLayer
       Policies:
         - AWSLambdaBasicExecutionRole
+        - LambdaInvokePolicy:
+            FunctionName: !Ref TelegramNotifyFunction
         - DynamoDBCrudPolicy:
             TableName: tappycards
         - DynamoDBCrudPolicy:
@@ -214,8 +267,7 @@ Resources:
           INTERNAL_SECRET: !Ref InternalSecret
           SPOTIFY_CLIENT_ID: !Ref SpotifyClientId
           SPOTIFY_CLIENT_SECRET: !Ref SpotifyClientSecret
-          TELEGRAM_BOT_TOKEN: !Ref TelegramBotToken
-          TELEGRAM_CHAT_ID: !Ref TelegramChatId
+          NOTIFICATION_FUNCTION: !If [TelegramEnabled, !Ref TelegramNotifyFunction, '']
       Events:
         Api:
           Type: Api
