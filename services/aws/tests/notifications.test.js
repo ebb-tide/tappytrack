@@ -133,6 +133,10 @@ for (const [name, body, status, expectedText, existingUser] of [
       },
       require(module) {
         if (module === '/opt/notify') return { notify: async text => messages.push(text) };
+        if (module === './deadline') return {
+          createDeadline: () => ({ fetch: context.fetch, send: (client, command) => client.send(command) }),
+          isTimeout: () => false,
+        };
         if (module === '@aws-sdk/client-dynamodb') return { DynamoDBClient: class {} };
         if (module === '@aws-sdk/lib-dynamodb') return {
           GetCommand: class { constructor(input) { this.input = input; } },

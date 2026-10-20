@@ -247,6 +247,7 @@ Resources:
       Handler: index.handler
       Runtime: nodejs22.x
       CodeUri: lambdas/tapCard/
+      Timeout: 5
       Layers:
         - !Ref NotificationClientLayer
       Policies:

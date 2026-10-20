@@ -5,6 +5,7 @@ const DEVICES_TABLE = process.env.DEVICES_TABLE;
 const CARDS_TABLE = process.env.CARDS_TABLE;
 const USERS_TABLE = process.env.USERS_TABLE;
 const { notify } = require('/opt/notify');
+const { createDeadline, isTimeout } = require('./deadline');
 
 function spotifyError(message, status) {
   const err = new Error(message);
@@ -22,12 +23,12 @@ function spotifyError(message, status) {
  *   5. Fall back to the saved device ID even if unlisted (it may be asleep)
  * Returns { deviceId, deviceName, source } or null if there is nothing to try.
  */
-async function resolveDevice(accessToken, user) {
+async function resolveDevice(accessToken, user, request) {
   let devices = [];
   try {
-    const resp = await fetch('https://api.spotify.com/v1/me/player/devices', {
+    const resp = await request('https://api.spotify.com/v1/me/player/devices', {
       headers: { 'Authorization': `Bearer ${accessToken}` }
-    });
+    }, 'Spotify device lookup');
     if (resp.status === 401) {
       throw spotifyError('Spotify auth failed while listing devices', 401);
     }
@@ -36,7 +37,7 @@ async function resolveDevice(accessToken, user) {
       devices = data.devices || [];
     }
   } catch (err) {
-    if (err.status === 401) throw err;
+    if (err.status === 401 || isTimeout(err)) throw err;
     // If device fetch fails otherwise, fall through to the saved fallback
   }
 
@@ -73,15 +74,15 @@ async function resolveDevice(accessToken, user) {
  * This wakes up devices that may appear offline and ensures the
  * device is ready to receive playback.
  */
-async function transferPlayback(accessToken, deviceId) {
-  const resp = await fetch('https://api.spotify.com/v1/me/player', {
+async function transferPlayback(accessToken, deviceId, request) {
+  const resp = await request('https://api.spotify.com/v1/me/player', {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${accessToken}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({ device_ids: [deviceId], play: false })
-  });
+  }, 'Spotify playback transfer');
   // 204 = success, 404 = no active device (ok to ignore)
   if (!resp.ok && resp.status !== 404) {
     const errText = await resp.text();
@@ -94,17 +95,17 @@ async function transferPlayback(accessToken, deviceId) {
  * rotates the refresh token in the response; store the new one or the
  * account eventually becomes unrecoverable.
  */
-async function refreshSpotifyToken(ddbDocClient, userid, refreshToken) {
+async function refreshSpotifyToken(ddbDocClient, userid, refreshToken, request) {
   const params = new URLSearchParams();
   params.append('grant_type', 'refresh_token');
   params.append('refresh_token', refreshToken);
   params.append('client_id', process.env.SPOTIFY_CLIENT_ID);
   params.append('client_secret', process.env.SPOTIFY_CLIENT_SECRET);
-  const resp = await fetch('https://accounts.spotify.com/api/token', {
+  const resp = await request('https://accounts.spotify.com/api/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: params
-  });
+  }, 'Spotify token refresh', 1000); // Leave time to persist a rotated refresh token.
   if (!resp.ok) throw new Error('Failed to refresh Spotify token');
   const tokenData = await resp.json();
   const accessToken = tokenData.access_token;
@@ -136,7 +137,7 @@ async function recordUserError(ddbDocClient, userid, message) {
         ':ts': Date.now(),
         ':src': 'tapCard'
       }
-    }));
+    }), { abortSignal: AbortSignal.timeout(300) });
   } catch (err) {
     console.error('Failed to record last error:', err);
   }
@@ -147,7 +148,7 @@ function extractSpotifyTrackId(url) {
   return match ? match[1] : null;
 }
 
-exports.handler = async (event) => {
+exports.handler = async (event, context) => {
   const secret = event.headers && event.headers["x-internal"];
   if (secret !== process.env.INTERNAL_SECRET) {
     return { statusCode: 403, body: "Forbidden" };
@@ -167,8 +168,11 @@ exports.handler = async (event) => {
 
   cardID = cardID.toUpperCase();
 
-  const client = new DynamoDBClient();
-  const ddbDocClient = DynamoDBDocumentClient.from(client);
+  const client = new DynamoDBClient({ maxAttempts: 1 });
+  const rawDocClient = DynamoDBDocumentClient.from(client);
+  const deadline = createDeadline(context);
+  const request = deadline.fetch;
+  const ddbDocClient = { send: command => deadline.send(rawDocClient, command) };
   // 1. Lookup userid from devices table
   let userid;
   try {
@@ -181,7 +185,7 @@ exports.handler = async (event) => {
     }
     userid = deviceRes.Item.userid;
   } catch (err) {
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    return { statusCode: isTimeout(err) ? 504 : 500, body: JSON.stringify({ error: err.message }) };
   }
   // 2. Lookup card record from cards table
   let card;
@@ -193,8 +197,8 @@ exports.handler = async (event) => {
     card = cardRes.Item;
   } catch (err) {
     const message = err.message || 'Failed to load card';
-    await recordUserError(ddbDocClient, userid, message);
-    return { statusCode: 500, body: JSON.stringify({ error: message }) };
+    await recordUserError(rawDocClient, userid, message);
+    return { statusCode: isTimeout(err) ? 504 : 500, body: JSON.stringify({ error: message }) };
   }
   // 3. Lookup user record
   let user;
@@ -206,8 +210,8 @@ exports.handler = async (event) => {
     user = userRes.Item;
   } catch (err) {
     const message = err.message || 'Failed to load user';
-    await recordUserError(ddbDocClient, userid, message);
-    return { statusCode: 500, body: JSON.stringify({ error: message }) };
+    await recordUserError(rawDocClient, userid, message);
+    return { statusCode: isTimeout(err) ? 504 : 500, body: JSON.stringify({ error: message }) };
   }
 
   if (!user) {
@@ -226,8 +230,8 @@ exports.handler = async (event) => {
     }));
   } catch (err) {
     const message = err.message || 'Failed to update last card';
-    await recordUserError(ddbDocClient, userid, message);
-    return { statusCode: 500, body: JSON.stringify({ error: message }) };
+    await recordUserError(rawDocClient, userid, message);
+    return { statusCode: isTimeout(err) ? 504 : 500, body: JSON.stringify({ error: message }) };
   }
 
   if (!card) {
@@ -244,13 +248,13 @@ exports.handler = async (event) => {
 
   if (expiresAt && now >= expiresAt && refreshToken) {
     try {
-      const refreshed = await refreshSpotifyToken(ddbDocClient, userid, refreshToken);
+      const refreshed = await refreshSpotifyToken(ddbDocClient, userid, refreshToken, request);
       accessToken = refreshed.accessToken;
       refreshToken = refreshed.refreshToken;
     } catch (err) {
       const message = 'Spotify token refresh failed: ' + err.message;
-      await recordUserError(ddbDocClient, userid, message);
-      return { statusCode: 500, body: JSON.stringify({ error: message }) };
+      await recordUserError(rawDocClient, userid, message);
+      return { statusCode: isTimeout(err) ? 504 : 500, body: JSON.stringify({ error: message }) };
     }
   }
 
@@ -260,7 +264,7 @@ exports.handler = async (event) => {
   const spotifyURL = card.spotifyURL || card.spotifyUrl;
   if (accessToken && spotifyURL) {
     const playOnce = async (token) => {
-      const device = await resolveDevice(token, user);
+      const device = await resolveDevice(token, user, request);
       if (!device) {
         throw spotifyError('No Spotify device available — open Spotify on a player and set it in the dashboard', 404);
       }
@@ -279,11 +283,11 @@ exports.handler = async (event) => {
       }
 
       // Transfer playback to wake up the device
-      await transferPlayback(token, device.deviceId);
+      await transferPlayback(token, device.deviceId, request);
 
       // Play the track
       const uri = extractSpotifyTrackId(spotifyURL);
-      const playResp = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${device.deviceId}`,
+      const playResp = await request(`https://api.spotify.com/v1/me/player/play?device_id=${device.deviceId}`,
         {
           method: 'PUT',
           headers: {
@@ -291,7 +295,7 @@ exports.handler = async (event) => {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({ uris: [`spotify:track:${uri}`] })
-        }
+        }, 'Spotify playback'
       );
       if (!playResp.ok) {
         const errText = await playResp.text();
@@ -306,7 +310,7 @@ exports.handler = async (event) => {
         // The stored token can be stale even when expiresAt says otherwise —
         // refresh once and retry.
         if (err.status === 401 && refreshToken) {
-          const refreshed = await refreshSpotifyToken(ddbDocClient, userid, refreshToken);
+          const refreshed = await refreshSpotifyToken(ddbDocClient, userid, refreshToken, request);
           accessToken = refreshed.accessToken;
           await playOnce(accessToken);
         } else {
@@ -316,8 +320,8 @@ exports.handler = async (event) => {
       playStatus = 'success';
     } catch (err) {
       const message = 'Spotify play failed: ' + err.message;
-      await recordUserError(ddbDocClient, userid, message);
-      return { statusCode: 500, body: JSON.stringify({ error: message }) };
+      await recordUserError(rawDocClient, userid, message);
+      return { statusCode: isTimeout(err) ? 504 : 500, body: JSON.stringify({ error: message }) };
     }
   }
 
