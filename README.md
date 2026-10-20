@@ -13,6 +13,14 @@ deploy.sh
 - get your numeric chat id from @userinfobot
 - add TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID to .env, then run deploy.sh
 - pings on: sign-in, new user, card added, device claimed, unknown card tapped
+- delivery runs in `tappytrackTelegramNotify`, separately from API responses;
+  API handlers wait at most 500 ms for AWS to accept a notification
+- failed delivery is retried twice within one hour, then retained in the
+  `NotificationFailureQueue` SQS destination for 14 days; an enqueue failure is
+  logged by the originating Lambda and does not fail the user action
+
+## backend tests:
+- `node --test services/aws/tests/*.test.js services/aws/lambdas/getPlayers/index.test.js`
 
 # web app
 - cd apps/web
