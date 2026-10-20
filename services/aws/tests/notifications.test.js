@@ -132,6 +132,11 @@ for (const [name, body, status, expectedText, existingUser] of [
         return { ok: true, json: async () => url.includes('/token') ? { access_token: 'app-token' } : { name: 'Track', artists: [] } };
       },
       require(module) {
+        if (module === '/opt/spotify-token') {
+          const nested = { ...context, module: { exports: {} } };
+          vm.runInNewContext(readFileSync(resolve(root, 'layers/spotify/spotify-token.js'), 'utf8'), nested);
+          return nested.module.exports;
+        }
         if (module === '/opt/notify') return { notify: async text => messages.push(text) };
         if (module === './deadline') return {
           createDeadline: () => ({ fetch: context.fetch, send: (client, command) => client.send(command) }),

@@ -14,6 +14,11 @@ function setup(user, response) {
     console,
     URLSearchParams,
     require(name) {
+      if (name === '/opt/spotify-token') {
+        const nested = { ...context, module: { exports: {} } };
+        vm.runInNewContext(readFileSync(`${__dirname}/../../layers/spotify/spotify-token.js`, 'utf8'), nested);
+        return nested.module.exports;
+      }
       if (name === '@aws-sdk/client-dynamodb') return { DynamoDBClient: class {} };
       if (name === '@aws-sdk/lib-dynamodb') return {
         GetCommand, UpdateCommand,

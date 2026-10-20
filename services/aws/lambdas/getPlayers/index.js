@@ -2,40 +2,7 @@ const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, GetCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
 
 const USERS_TABLE = process.env.USERS_TABLE;
-
-/**
- * Refresh the Spotify access token and persist it. Spotify occasionally
- * rotates the refresh token in the response; store the new one or the
- * account eventually becomes unrecoverable.
- */
-async function refreshSpotifyToken(ddbDocClient, userid, refreshToken) {
-  const params = new URLSearchParams();
-  params.append('grant_type', 'refresh_token');
-  params.append('refresh_token', refreshToken);
-  params.append('client_id', process.env.SPOTIFY_CLIENT_ID);
-  params.append('client_secret', process.env.SPOTIFY_CLIENT_SECRET);
-  const resp = await fetch('https://accounts.spotify.com/api/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: params
-  });
-  if (!resp.ok) throw new Error('Failed to refresh Spotify token');
-  const tokenData = await resp.json();
-  const accessToken = tokenData.access_token;
-  const expiresAt = Math.floor(Date.now() / 1000) + tokenData.expires_in;
-  const newRefreshToken = tokenData.refresh_token || refreshToken;
-  await ddbDocClient.send(new UpdateCommand({
-    TableName: USERS_TABLE,
-    Key: { userid },
-    UpdateExpression: 'SET accessToken = :at, expiresAt = :ea, refreshToken = :rt',
-    ExpressionAttributeValues: {
-      ':at': accessToken,
-      ':ea': expiresAt,
-      ':rt': newRefreshToken
-    }
-  }));
-  return { accessToken, refreshToken: newRefreshToken, expiresAt };
-}
+const { refreshSpotifyToken } = require('/opt/spotify-token');
 
 async function recordUserError(ddbDocClient, userid, message) {
   if (!userid) return;
