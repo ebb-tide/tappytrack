@@ -26,6 +26,13 @@ Conditions:
     - !Not [!Equals [!Ref TelegramChatId, '']]
 
 Resources:
+  SpotifyTokenLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      ContentUri: layers/spotify/
+      CompatibleRuntimes:
+        - nodejs22.x
+
   NotificationClientLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
@@ -250,6 +257,7 @@ Resources:
       Timeout: 5
       Layers:
         - !Ref NotificationClientLayer
+        - !Ref SpotifyTokenLayer
       Policies:
         - AWSLambdaBasicExecutionRole
         - LambdaInvokePolicy:
@@ -283,6 +291,8 @@ Resources:
       Handler: index.handler
       Runtime: nodejs22.x
       CodeUri: lambdas/getPlayers/
+      Layers:
+        - !Ref SpotifyTokenLayer
       Policies:
         - AWSLambdaBasicExecutionRole
         - DynamoDBCrudPolicy:

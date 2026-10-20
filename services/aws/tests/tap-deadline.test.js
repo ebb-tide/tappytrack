@@ -76,7 +76,7 @@ test('database calls receive an abort signal and preserve non-timeout errors', a
   } }, {}), error => error === failure);
 });
 
-function setupTap({ deviceFetch, contextRemaining = 5000, initialNow = 0 } = {}) {
+function setupTap({ deviceFetch, tokenFetch, user = {}, contextRemaining = 5000, initialNow = 0 } = {}) {
   let now = initialNow;
   const fetches = [];
   const writes = [];
@@ -91,6 +91,7 @@ function setupTap({ deviceFetch, contextRemaining = 5000, initialNow = 0 } = {})
     process: { env: { USERS_TABLE: 'users', CARDS_TABLE: 'cards', DEVICES_TABLE: 'devices', INTERNAL_SECRET: 'secret' } },
     fetch: async (url, options) => {
       fetches.push({ url, options });
+      if (url.endsWith('/token')) return tokenFetch(options);
       if (url.endsWith('/devices')) {
         return deviceFetch ? deviceFetch(options, () => { now += 4500; }) : {
           ok: true, status: 200,
@@ -100,6 +101,11 @@ function setupTap({ deviceFetch, contextRemaining = 5000, initialNow = 0 } = {})
       return { ok: true, status: 204 };
     },
     require(name) {
+      if (name === '/opt/spotify-token') {
+        const nested = { ...context, module: { exports: {} } };
+        vm.runInNewContext(readFileSync(resolve(directory, '../../layers/spotify/spotify-token.js'), 'utf8'), nested);
+        return nested.module.exports;
+      }
       if (name === './deadline') {
         const nested = { ...context, module: { exports: {} } };
         vm.runInNewContext(readFileSync(resolve(directory, 'deadline.js'), 'utf8'), nested);
@@ -115,7 +121,7 @@ function setupTap({ deviceFetch, contextRemaining = 5000, initialNow = 0 } = {})
           if (command instanceof UpdateCommand) { writes.push(command.input); return {}; }
           if (command.input.TableName === 'devices') return { Item: { userid: 'u' } };
           if (command.input.TableName === 'cards') return { Item: { spotifyURL: 'https://open.spotify.com/track/abc' } };
-          return { Item: { userid: 'u', accessToken: 'token', playerid: 'speaker', playerName: 'Speaker' } };
+          return { Item: { userid: 'u', accessToken: 'token', playerid: 'speaker', playerName: 'Speaker', ...user } };
         } }) },
       };
       throw new Error(`Unexpected module: ${name}`);
@@ -134,6 +140,65 @@ test('normal tap still resolves, transfers and plays with bounded requests', asy
   assert.equal((await app.run()).statusCode, 200);
   assert.equal(app.fetches.length, 3);
   assert.ok(app.fetches.every(request => request.options.signal.ms === 2000));
+});
+
+for (const proactive of [true, false]) {
+  for (const rotated of [true, false]) {
+    test(`tap ${proactive ? 'expired token' : 'device 401'} refresh ${rotated ? 'persists rotated' : 'preserves original'} refresh token`, async () => {
+      let deviceRequests = 0;
+      const app = setupTap({
+        initialNow: 10000,
+        user: { refreshToken: 'original-refresh', expiresAt: proactive ? 1 : undefined },
+        tokenFetch: async options => {
+          assert.equal(options.body.get('refresh_token'), 'original-refresh');
+          return {
+            ok: true,
+            json: async () => ({ access_token: 'fresh-access', expires_in: 3600,
+              ...(rotated ? { refresh_token: 'rotated-refresh' } : {}) }),
+          };
+        },
+        deviceFetch: async options => {
+          if (!proactive && deviceRequests++ === 0) return { status: 401 };
+          assert.equal(options.headers.Authorization, 'Bearer fresh-access');
+          return { ok: true, json: async () => ({ devices: [{ id: 'speaker', name: 'Speaker' }] }) };
+        },
+      });
+      assert.equal((await app.run()).statusCode, 200);
+      const write = app.writes.find(write => ':rt' in write.ExpressionAttributeValues);
+      assert.equal(write.TableName, 'users');
+      assert.equal(write.Key.userid, 'u');
+      assert.equal(write.ExpressionAttributeValues[':at'], 'fresh-access');
+      assert.equal(write.ExpressionAttributeValues[':ea'], 3610);
+      assert.equal(write.ExpressionAttributeValues[':rt'], rotated ? 'rotated-refresh' : 'original-refresh');
+      assert.equal(app.fetches.at(-1).options.headers.Authorization, 'Bearer fresh-access');
+    });
+  }
+}
+
+test('tap recovery uses the token rotated by proactive refresh and reserves persistence time', async () => {
+  const usedRefreshTokens = [];
+  let deviceRequests = 0;
+  const app = setupTap({
+    initialNow: 10000,
+    contextRemaining: 2300,
+    user: { refreshToken: 'original-refresh', expiresAt: 1 },
+    tokenFetch: async options => {
+      usedRefreshTokens.push(options.body.get('refresh_token'));
+      assert.equal(options.signal.ms, 600);
+      return { ok: true, json: async () => ({
+        access_token: 'fresh-access', expires_in: 3600,
+        ...(usedRefreshTokens.length === 1 ? { refresh_token: 'rotated-refresh' } : {}),
+      }) };
+    },
+    deviceFetch: async () => deviceRequests++ === 0 ? { status: 401 } : {
+      ok: true, json: async () => ({ devices: [{ id: 'speaker', name: 'Speaker' }] }),
+    },
+  });
+  assert.equal((await app.run()).statusCode, 200);
+  assert.deepEqual(usedRefreshTokens, ['original-refresh', 'rotated-refresh']);
+  const tokenWrites = app.writes.filter(write => ':rt' in write.ExpressionAttributeValues);
+  assert.equal(tokenWrites.length, 2);
+  assert.ok(tokenWrites.every(write => write.ExpressionAttributeValues[':rt'] === 'rotated-refresh'));
 });
 
 for (const bodyTimeout of [false, true]) {

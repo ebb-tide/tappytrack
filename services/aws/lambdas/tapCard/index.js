@@ -4,6 +4,7 @@ const { DynamoDBDocumentClient, GetCommand, UpdateCommand } = require("@aws-sdk/
 const DEVICES_TABLE = process.env.DEVICES_TABLE;
 const CARDS_TABLE = process.env.CARDS_TABLE;
 const USERS_TABLE = process.env.USERS_TABLE;
+const { refreshSpotifyToken } = require('/opt/spotify-token');
 const { notify } = require('/opt/notify');
 const { createDeadline, isTimeout } = require('./deadline');
 
@@ -88,40 +89,6 @@ async function transferPlayback(accessToken, deviceId, request) {
     const errText = await resp.text();
     throw spotifyError(`Transfer playback failed: ${resp.status} ${errText}`, resp.status);
   }
-}
-
-/**
- * Refresh the Spotify access token and persist it. Spotify occasionally
- * rotates the refresh token in the response; store the new one or the
- * account eventually becomes unrecoverable.
- */
-async function refreshSpotifyToken(ddbDocClient, userid, refreshToken, request) {
-  const params = new URLSearchParams();
-  params.append('grant_type', 'refresh_token');
-  params.append('refresh_token', refreshToken);
-  params.append('client_id', process.env.SPOTIFY_CLIENT_ID);
-  params.append('client_secret', process.env.SPOTIFY_CLIENT_SECRET);
-  const resp = await request('https://accounts.spotify.com/api/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: params
-  }, 'Spotify token refresh', 1000); // Leave time to persist a rotated refresh token.
-  if (!resp.ok) throw new Error('Failed to refresh Spotify token');
-  const tokenData = await resp.json();
-  const accessToken = tokenData.access_token;
-  const expiresAt = Math.floor(Date.now() / 1000) + tokenData.expires_in;
-  const newRefreshToken = tokenData.refresh_token || refreshToken;
-  await ddbDocClient.send(new UpdateCommand({
-    TableName: USERS_TABLE,
-    Key: { userid },
-    UpdateExpression: 'SET accessToken = :at, expiresAt = :ea, refreshToken = :rt',
-    ExpressionAttributeValues: {
-      ':at': accessToken,
-      ':ea': expiresAt,
-      ':rt': newRefreshToken
-    }
-  }));
-  return { accessToken, refreshToken: newRefreshToken, expiresAt };
 }
 
 async function recordUserError(ddbDocClient, userid, message) {
