@@ -115,10 +115,37 @@ def setup(now=0, legacy_ssl=False):
 
 
 class HttpTests(unittest.TestCase):
-    def post(self, module, clock):
+    def post(self, module, clock, **options):
         return module.post_status("https://api.example/Prod/tap", '{"cardID":"AABB"}',
                                   {"Content-Type": "application/json", "x-internal": "test-secret"},
-                                  clock.ticks_add(clock.ticks_ms(), 6500))
+                                  clock.ticks_add(clock.ticks_ms(), 6500), **options)
+
+    def test_slow_setup_leaves_a_full_response_budget(self):
+        module, clock, transport = setup()
+        transport.connect_ms = 5500
+        transport.reads = [(2500, b"HTTP/1.1 200 OK\r\n\r\n")]
+        feeds = []
+        self.assertEqual(self.post(module, clock, response_timeout_ms=6500,
+                                   on_request_sent=lambda: feeds.append(clock.now)), 200)
+        self.assertEqual(feeds, [5500])
+        self.assertEqual(clock.now, 8000)
+
+    def test_response_stall_still_times_out_with_phase_details(self):
+        module, clock, transport = setup()
+        transport.connect_ms = 5500
+        transport.reads = []
+        with self.assertRaisesRegex(module.RequestError, "HTTP response failed after 6500 ms") as error:
+            self.post(module, clock, response_timeout_ms=6500)
+        self.assertEqual(clock.now, 12000)
+        self.assertFalse(error.exception.safe_to_retry)
+        self.assertTrue(transport.closed and transport.stream_closed)
+
+    def test_new_response_budget_does_not_extend_stalled_setup(self):
+        module, clock, transport = setup()
+        transport.pending_tls = True
+        with self.assertRaisesRegex(module.RequestError, "HTTP setup failed after 6500 ms"):
+            self.post(module, clock, response_timeout_ms=6500)
+        self.assertEqual(clock.now, 6500)
 
     def test_success_closes_without_waiting_for_response_body(self):
         module, clock, transport = setup()
@@ -208,19 +235,21 @@ class HttpTests(unittest.TestCase):
 class RetryTests(unittest.TestCase):
     def setup_retry(self, post):
         clock = Clock()
+        clock.feeds = []
         module, _, _ = setup()
         node = next(node for node in ast.parse((ROOT / "main.py").read_text()).body
                     if isinstance(node, ast.FunctionDef) and node.name == "post_with_retry")
-        namespace = {"time": clock, "HTTP_DEADLINE_MS": 6500,
-                     "tap_http": types.SimpleNamespace(post_status=lambda *args: post(clock, module, *args)),
-                     "feed": lambda: None, "sleep_fed": lambda seconds: clock.sleep_ms(int(seconds * 1000))}
+        namespace = {"time": clock, "HTTP_SETUP_TIMEOUT_MS": 6500, "HTTP_RESPONSE_TIMEOUT_MS": 6500,
+                     "tap_http": types.SimpleNamespace(post_status=lambda *args, **kwargs: post(clock, module, *args, **kwargs)),
+                     "feed": lambda: clock.feeds.append(clock.now),
+                     "sleep_fed": lambda seconds: clock.sleep_ms(int(seconds * 1000))}
         exec(compile(ast.Module(body=[node], type_ignores=[]), "main.py", "exec"), namespace)
         return namespace["post_with_retry"], clock
 
     def test_connection_retry_shares_original_deadline_and_backoff_budget(self):
         calls = []
 
-        def post(clock, module, url, payload, headers, deadline):
+        def post(clock, module, url, payload, headers, deadline, **kwargs):
             calls.append(deadline)
             if len(calls) == 1:
                 clock.now += 1000
@@ -235,7 +264,7 @@ class RetryTests(unittest.TestCase):
     def test_lost_response_does_not_replay_tap(self):
         calls = []
 
-        def post(clock, module, *args):
+        def post(clock, module, *args, **kwargs):
             calls.append(args)
             raise module.RequestError("response lost", safe_to_retry=False)
 
@@ -248,7 +277,7 @@ class RetryTests(unittest.TestCase):
     def test_no_retry_when_backoff_would_exhaust_deadline(self):
         calls = []
 
-        def post(clock, module, *args):
+        def post(clock, module, *args, **kwargs):
             calls.append(args)
             clock.now += 6300
             raise module.RequestError("connect failed", safe_to_retry=True)
@@ -257,6 +286,20 @@ class RetryTests(unittest.TestCase):
         retry("url", "payload", {})
         self.assertEqual(len(calls), 1)
         self.assertEqual(clock.now, 6300)
+
+    def test_watchdog_is_fed_between_setup_and_response(self):
+        def post(clock, module, *args, **kwargs):
+            clock.now += 5500
+            self.assertEqual(kwargs['response_timeout_ms'], 6500)
+            kwargs['on_request_sent']()
+            clock.now += 2500
+            return 200
+
+        retry, clock = self.setup_retry(post)
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(retry("url", "payload", {}), (200, None))
+        self.assertEqual(clock.feeds, [0, 5500])
+        self.assertEqual(clock.now, 8000)
 
 
 class TapLoopTests(unittest.TestCase):

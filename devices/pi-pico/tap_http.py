@@ -1,7 +1,7 @@
 """Small HTTPS POST transport for taps; returns status without reading a body.
 
-All socket I/O shares one absolute deadline. MicroPython's native DNS lookup
-cannot be interrupted here; the hardware watchdog remains its last resort.
+Setup and response I/O use separate absolute deadlines. MicroPython's native
+DNS lookup cannot be interrupted here; the watchdog remains its last resort.
 """
 import errno
 import socket
@@ -35,8 +35,13 @@ def _io(stream, operation, value, deadline):
         time.sleep_ms(min(10, _remaining(deadline)))
 
 
-def post_status(url, payload, headers, deadline):
-    """Use a ticks_ms deadline, including connect, TLS, writes and headers.
+def post_status(url, payload, headers, deadline, response_timeout_ms=None,
+                on_request_sent=None):
+    """Use a ticks_ms setup deadline for connect, TLS and request writes.
+
+    After writing the request, call on_request_sent (used to feed the watchdog)
+    and start a fresh response deadline. Without response_timeout_ms, the setup
+    deadline also covers the response for compatibility with direct callers.
 
     Retry is safe only before any HTTP bytes could have reached the server.
     A lost response after sending a tap must not trigger duplicate playback.
@@ -44,6 +49,8 @@ def post_status(url, payload, headers, deadline):
     raw = None
     stream = None
     request_started = False
+    phase = "setup"
+    phase_started_ms = time.ticks_ms()
     try:
         parts = url.split("/", 3)
         if parts[0] != "https:" or len(parts) < 3 or not parts[2]:
@@ -91,6 +98,17 @@ def post_status(url, payload, headers, deadline):
                 raise OSError("Connection closed while sending tap")
             sent += written
 
+        # TLS setup on a Pico can consume much of the original deadline. AWS
+        # only starts processing once the HTTP request arrives, so give its
+        # response its own bounded wait and reset the watchdog between phases.
+        _remaining(deadline)
+        if on_request_sent:
+            on_request_sent()
+        phase = "response"
+        phase_started_ms = time.ticks_ms()
+        if response_timeout_ms is not None:
+            deadline = time.ticks_add(phase_started_ms, response_timeout_ms)
+
         response = b""
         while b"\r\n\r\n" not in response:
             chunk = _io(stream, "read", 256, deadline)
@@ -108,7 +126,9 @@ def post_status(url, payload, headers, deadline):
             raise ValueError("Unexpected HTTP status")
         return status_code
     except Exception as error:
-        raise RequestError(str(error), safe_to_retry=not request_started)
+        elapsed = time.ticks_diff(time.ticks_ms(), phase_started_ms)
+        raise RequestError("HTTP %s failed after %d ms: %s" % (phase, elapsed, error),
+                           safe_to_retry=not request_started)
     finally:
         for resource in (stream, raw):
             if resource is not None:
