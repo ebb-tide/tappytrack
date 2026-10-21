@@ -126,6 +126,9 @@ def save_wifi_config(ssid, password):
         json.dump({"ssid": ssid, "password": password}, f)
 
 def connect_wifi(ssid, password):
+    # A REPL/script restart can retain a working link; do not disrupt it.
+    if wlan.isconnected():
+        return True
     wlan.active(True)
     wlan.connect(ssid, password)
 
