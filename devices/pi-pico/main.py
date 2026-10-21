@@ -17,7 +17,8 @@ AP_CLIENT_IDLE_MS = 2 * 60 * 1000    # don't reboot the portal while someone is 
 TAP_DEBOUNCE_MS = 5000
 NFC_POLL_TIMEOUT_MS = 1000  # PN532 driver timeouts are milliseconds.
 WATCHDOG_MS = 8000
-HTTP_DEADLINE_MS = 6500  # Lambda gets 5s; leave time for the network and recovery.
+HTTP_SETUP_TIMEOUT_MS = 6500  # DNS, TCP, TLS and request writes.
+HTTP_RESPONSE_TIMEOUT_MS = 6500  # Lambda gets 5s after setup, plus network margin.
 
 piezo = machine.PWM(machine.Pin(8))
 wlan = network.WLAN(network.STA_IF)
@@ -61,11 +62,21 @@ def buzz_error_lambda():
 
 def post_with_retry(url, payload, headers, retries=1, delay_s=0.5):
     last_exc = None
-    deadline = time.ticks_add(time.ticks_ms(), HTTP_DEADLINE_MS)
+    started_ms = time.ticks_ms()
+    deadline = time.ticks_add(started_ms, HTTP_SETUP_TIMEOUT_MS)
+
+    def request_sent():
+        # The watchdog measures time since its last feed, not total tap time.
+        # Connection setup and response waiting each stay below its 8s limit.
+        feed()
+        print("Tap request sent; HTTPS setup took", time.ticks_diff(time.ticks_ms(), started_ms), "ms")
+
     for attempt in range(retries + 1):
         try:
             feed()
-            status = tap_http.post_status(url, payload, headers, deadline)
+            status = tap_http.post_status(url, payload, headers, deadline,
+                                         response_timeout_ms=HTTP_RESPONSE_TIMEOUT_MS,
+                                         on_request_sent=request_sent)
             return status, None
         except Exception as e:
             last_exc = e
