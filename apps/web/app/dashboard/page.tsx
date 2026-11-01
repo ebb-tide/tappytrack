@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { SpotifyTrackSearch, type SpotifyTrack } from "@/components/spotify-track-search"
 
 declare module "next-auth" {
     interface Session {
@@ -47,6 +48,7 @@ export default function Dashboard() {
     const [lastError, setLastError] = useState<LastError | null>(null);
 
     const [spotifyUrl, setSpotifyUrl] = useState("");
+    const [selectedTrack, setSelectedTrack] = useState<SpotifyTrack | null>(null);
     const [addingCard, setAddingCard] = useState(false);
     const [addCardError, setAddCardError] = useState<string | null>(null);
     const [newDeviceId, setNewDeviceId] = useState("");
@@ -137,6 +139,10 @@ export default function Dashboard() {
                     userid: session.user.id,
                     cardID: lastTappedCardId,
                     spotifyURL: spotifyUrl.trim(),
+                    ...(selectedTrack?.spotifyUrl === spotifyUrl.trim() ? {
+                        trackName: selectedTrack.name,
+                        artistName: selectedTrack.artistName,
+                    } : {}),
                 }),
             });
             if (!res.ok) {
@@ -144,6 +150,7 @@ export default function Dashboard() {
                 throw new Error(data.error || `Could not add card (${res.status}). Please try again.`);
             }
             setSpotifyUrl("");
+            setSelectedTrack(null);
             setLastTappedCardId(null);
             await fetchState();
         } catch (err) {
@@ -379,7 +386,11 @@ export default function Dashboard() {
                             </CardHeader>
                             {lastTappedCardId && (
                                 <CardContent className="p-6">
-
+                                    <SpotifyTrackSearch disabled={addingCard} onSelect={track => {
+                                        setSelectedTrack(track);
+                                        setSpotifyUrl(track.spotifyUrl);
+                                        setAddCardError(null);
+                                    }} />
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                                         <div className="space-y-2">
                                             <Label htmlFor="card-id" className="text-sm font-medium text-gray-700">
@@ -393,15 +404,23 @@ export default function Dashboard() {
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="spotify-url" className="text-sm font-medium text-gray-700">
-                                                Spotify URL
+                                                Spotify URL (or paste your own)
                                             </Label>
                                             <Input
                                                 id="spotify-url"
                                                 value={spotifyUrl}
-                                                onChange={(e) => setSpotifyUrl(e.target.value)}
+                                                disabled={addingCard}
+                                                onChange={(e) => {
+                                                    setSpotifyUrl(e.target.value);
+                                                    setSelectedTrack(null);
+                                                }}
                                                 placeholder="https://open.spotify.com/track/..."
                                                 className="border-emerald-200 focus:border-emerald-400"
                                             />
+                                            {selectedTrack && <p className="text-sm text-emerald-800">
+                                                {selectedTrack.name} · {selectedTrack.artistName}{' '}
+                                                <a href={selectedTrack.spotifyUrl} target="_blank" rel="noopener noreferrer" className="underline">Open in Spotify</a>
+                                            </p>}
                                         </div>
                                     </div>
                                     <Button

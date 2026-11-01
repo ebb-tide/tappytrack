@@ -70,12 +70,13 @@ exports.handler = async (event) => {
 
   cardID = cardID.toUpperCase();
 
-  // Lookup track info from Spotify
-  let trackName = null;
-  let artistName = null;
+  // Search selections already have metadata. Pasted URLs still use the bounded lookup.
+  const label = value => typeof value === 'string' && value.trim().length <= 512 ? value.trim() : '';
+  let trackName = label(data.trackName) || null;
+  let artistName = label(data.artistName) || null;
   try {
     const trackId = extractSpotifyTrackId(spotifyURL);
-    if (trackId) {
+    if (trackId && !(trackName && artistName)) {
       // Song details are optional. Share one budget across both requests and
       // their response bodies so slow Spotify calls cannot prevent saving.
       const signal = AbortSignal.timeout(1500);

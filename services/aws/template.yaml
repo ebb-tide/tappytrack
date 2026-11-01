@@ -311,6 +311,33 @@ Resources:
             Path: /players
             Method: get
 
+  SearchTracksFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: searchTracks
+      Handler: index.handler
+      Runtime: nodejs22.x
+      CodeUri: lambdas/searchTracks/
+      Timeout: 5
+      Layers:
+        - !Ref SpotifyTokenLayer
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - DynamoDBCrudPolicy:
+            TableName: tappyusers
+      Environment:
+        Variables:
+          USERS_TABLE: tappyusers
+          INTERNAL_SECRET: !Ref InternalSecret
+          SPOTIFY_CLIENT_ID: !Ref SpotifyClientId
+          SPOTIFY_CLIENT_SECRET: !Ref SpotifyClientSecret
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /search
+            Method: get
+
   SetPlayerFunction:
     Type: AWS::Serverless::Function
     Properties:

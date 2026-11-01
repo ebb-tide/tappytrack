@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { cardID, spotifyURL } = await req.json();
+  const { cardID, spotifyURL, trackName, artistName } = await req.json();
   const LAMBDA_URL = process.env.LAMBDA_URL || '';
   const INTERNAL_SECRET = process.env.LAMBDA_SECRET || '';
 
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
       'Content-Type': 'application/json',
       'x-internal': INTERNAL_SECRET,
     },
-    body: JSON.stringify({ userid, cardID, spotifyURL }),
+    body: JSON.stringify({ userid, cardID, spotifyURL, trackName, artistName }),
   });
 
   const data = await upstreamJson(lambdaRes);
