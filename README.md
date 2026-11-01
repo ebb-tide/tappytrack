@@ -42,6 +42,18 @@ deploy.sh
 
 # deploy to vercel by pushing to git.
 # web app now lives in apps/web
+- web API tests: `cd apps/web && npm test`
+
+## song search
+- after tapping a blank card, type at least 2 characters of a song title or artist;
+  suggestions appear after a 300 ms typing pause
+- choose a song with a click or the arrow keys and Enter; Escape dismisses suggestions
+- selecting a result fills its Spotify URL and saves its song/artist details without
+  another metadata lookup; pasting a Spotify URL is still supported
+- search uses the signed-in user's Spotify connection on the server, shares the
+  existing token-refresh layer, and honors Spotify's rate-limit cooldown
+- deploy the AWS template to add the new `GET /search` endpoint and `searchTracks`
+  Lambda before releasing the web changes
 
 # how to set up a new device:
 - plug in pi pico

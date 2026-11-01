@@ -32,9 +32,9 @@ function setup(fetch, send = async () => ({})) {
     },
   };
   vm.runInNewContext(readFileSync(resolve(__dirname, '../lambdas/addCard/index.js'), 'utf8'), context);
-  return { signals, writes, run: () => context.exports.handler({
+  return { signals, writes, run: (overrides = {}) => context.exports.handler({
     headers: { 'x-internal': 'secret' },
-    body: JSON.stringify({ userid: 'u', cardID: 'aabb', spotifyURL: 'https://open.spotify.com/track/abc' }),
+    body: JSON.stringify({ userid: 'u', cardID: 'aabb', spotifyURL: 'https://open.spotify.com/track/abc', ...overrides }),
   }) };
 }
 
@@ -75,4 +75,25 @@ test('returns a failure when the card cannot be saved', async () => {
   const response = await app.run();
   assert.equal(response.statusCode, 500);
   assert.match(JSON.parse(response.body).error, /Database unavailable/);
+});
+
+test('search selections save metadata without another Spotify lookup', async () => {
+  let fetches = 0;
+  const app = setup(async () => { fetches++; throw new Error('unexpected lookup'); });
+  assert.equal((await app.run({ trackName: ' Song ', artistName: 'Artist' })).statusCode, 201);
+  assert.equal(fetches, 0);
+  assert.equal(app.writes[0].Item.trackName, 'Song');
+  assert.equal(app.writes[0].Item.artistName, 'Artist');
+});
+
+test('invalid supplied metadata falls back to a Spotify lookup', async () => {
+  let fetches = 0;
+  const app = setup(async url => {
+    fetches++;
+    return { ok: true, json: async () => url.includes('/token')
+      ? { access_token: 'token' } : { name: 'Song', artists: [{ name: 'Artist' }] } };
+  });
+  assert.equal((await app.run({ trackName: { name: 'bad' }, artistName: 'x'.repeat(513) })).statusCode, 201);
+  assert.equal(fetches, 2);
+  assert.equal(app.writes[0].Item.trackName, 'Song');
 });
