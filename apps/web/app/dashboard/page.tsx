@@ -47,6 +47,8 @@ export default function Dashboard() {
     const [lastError, setLastError] = useState<LastError | null>(null);
 
     const [spotifyUrl, setSpotifyUrl] = useState("");
+    const [addingCard, setAddingCard] = useState(false);
+    const [addCardError, setAddCardError] = useState<string | null>(null);
     const [newDeviceId, setNewDeviceId] = useState("");
     // const deviceInputRef = useRef<HTMLInputElement>(null);
     const [selectedSpotifyPlayer, setSelectedSpotifyPlayer] = useState<string>("");
@@ -124,22 +126,30 @@ export default function Dashboard() {
     }, [status, session]);
 
     const handleAddCard = async () => {
-        if (!lastTappedCardId || spotifyUrl.trim() === "" || !session?.user?.id) return;
-        const res = await fetch('/api/add-card', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                userid: session.user.id,
-                cardID: lastTappedCardId,
-                spotifyURL: spotifyUrl,
-            }),
-        });
-        if (res.ok) {
+        if (addingCard || !lastTappedCardId || spotifyUrl.trim() === "" || !session?.user?.id) return;
+        setAddingCard(true);
+        setAddCardError(null);
+        try {
+            const res = await fetch('/api/add-card', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userid: session.user.id,
+                    cardID: lastTappedCardId,
+                    spotifyURL: spotifyUrl.trim(),
+                }),
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.error || `Could not add card (${res.status}). Please try again.`);
+            }
             setSpotifyUrl("");
             setLastTappedCardId(null);
-            fetchState();
-        } else {
-            console.log("Failed to add card:", res.statusText);
+            await fetchState();
+        } catch (err) {
+            setAddCardError(err instanceof Error ? err.message : 'Could not add card. Please try again.');
+        } finally {
+            setAddingCard(false);
         }
     };
 
@@ -396,12 +406,13 @@ export default function Dashboard() {
                                     </div>
                                     <Button
                                         onClick={handleAddCard}
-                                        disabled={(!lastTappedCardId || spotifyUrl.trim() === "" || !session?.user?.id)}
+                                        disabled={(addingCard || !lastTappedCardId || spotifyUrl.trim() === "" || !session?.user?.id)}
                                         className="text-emerald-800 bg-emerald-300 hover:bg-emerald-400 mt-4 disabled:opacity-60"
                                     >
                                         <Plus className="h-4 w-4 mr-2" />
-                                        Add New Card
+                                        {addingCard ? 'Adding…' : 'Add New Card'}
                                     </Button>
+                                    {addCardError && <p role="alert" className="mt-2 text-sm text-red-700">{addCardError}</p>}
                                 </CardContent>
                             )}
 

@@ -124,7 +124,7 @@ for (const [name, body, status, expectedText, existingUser] of [
   test(`${name} hands off its notification without making a Telegram request (${status})`, async () => {
     const messages = [];
     const context = {
-      exports: {}, Buffer, URLSearchParams,
+      exports: {}, Buffer, URLSearchParams, AbortSignal,
       process: { env: { INTERNAL_SECRET: 'secret', USERS_TABLE: 'users', DEVICES_TABLE: 'devices', CARDS_TABLE: 'cards' } },
       console: { log() {}, error() {} },
       async fetch(url) {
