@@ -219,6 +219,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: addCard
+      Timeout: 5
       Handler: index.handler
       Runtime: nodejs22.x
       CodeUri: lambdas/addCard/
