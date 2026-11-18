@@ -1,18 +1,20 @@
 'use client';
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button"
 
 
 export default function Home() {
   const { data: session } = useSession();
+  const router = useRouter();
 
-  if (session) {
-    if (typeof window !== 'undefined') {
-      window.location.href = '/dashboard';
-    }
-    return null;
-  }
+  useEffect(() => {
+    if (session) router.replace('/dashboard');
+  }, [session, router]);
+
+  if (session) return null;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-emerald-50 px-4">

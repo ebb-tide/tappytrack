@@ -34,12 +34,15 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files (the .example templates are committed)
 .env*
 apps/web/.env*
+!.env.example
 
 # vercel
 .vercel
+
+# local tooling
 .claude
 
 # typescript
@@ -51,3 +54,4 @@ services/aws/.aws-sam/
 services/aws/lambdas/*/node_modules/*
 archive/*
 devices/pi-pico/*.json
+!devices/pi-pico/device.example.json

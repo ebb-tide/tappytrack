@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { upstreamJson } from '@/lib/upstream';
+import { readJsonBody, upstreamJson } from '@/lib/upstream';
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -10,7 +10,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { cardID, spotifyURL, trackName, artistName } = await req.json();
+  const body = await readJsonBody(req);
+  if (!body) {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
+  const { cardID, spotifyURL, trackName, artistName } = body;
   const LAMBDA_URL = process.env.LAMBDA_URL || '';
   const INTERNAL_SECRET = process.env.LAMBDA_SECRET || '';
 

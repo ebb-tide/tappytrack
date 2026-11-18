@@ -1,0 +1,5 @@
+{
+  "device_id": "pick-a-unique-id",
+  "lambda_url": "https://YOUR_API_ID.execute-api.us-east-1.amazonaws.com/Prod",
+  "lambda_secret": "same value as INTERNAL_SECRET"
+}
