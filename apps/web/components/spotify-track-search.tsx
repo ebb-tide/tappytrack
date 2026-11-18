@@ -18,9 +18,8 @@ export interface SpotifyTrack {
 }
 
 interface SearchState {
-    query: string;
+    key: string; // `${retry}:${term}` of the search this result belongs to
     tracks: SpotifyTrack[];
-    pending: boolean;
     error?: string;
     reconnect?: boolean;
 }
@@ -37,18 +36,19 @@ export function SpotifyTrackSearch({ onSelect, disabled = false }: {
     const [expanded, setExpanded] = useState(false);
     const [activeIndex, setActiveIndex] = useState(-1);
     const [retry, setRetry] = useState(0);
-    const [state, setState] = useState<SearchState>({ query: '', tracks: [], pending: false });
+    const [state, setState] = useState<SearchState>({ key: '', tracks: [] });
     const term = query.trim();
     const canSearch = term.length >= 2 && query !== selectedQuery && !disabled;
-    const current = state.query === term ? state : null;
-    const loading = canSearch && (!current || current.pending);
+    const key = `${retry}:${term}`;
+    // No result for the current term/retry yet means a search is in flight.
+    const current = state.key === key ? state : null;
+    const loading = canSearch && !current;
     const tracks = canSearch && !loading ? current?.tracks || [] : [];
     const showResults = expanded && canSearch;
 
     useEffect(() => {
         if (!canSearch) return;
         const controller = new AbortController();
-        setState({ query: term, tracks: [], pending: true });
         // Honor Spotify's Retry-After before starting another query.
         const timer = setTimeout(async () => {
             try {
@@ -61,17 +61,17 @@ export function SpotifyTrackSearch({ onSelect, disabled = false }: {
                     retryAt.current = Date.now() + Math.min(3600, Math.max(1, Number(data.retryAfter) || 30)) * 1000;
                 }
                 if (!response.ok) {
-                    setState({ query: term, tracks: [], pending: false,
+                    setState({ key, tracks: [],
                         error: data.error || 'Could not search Spotify. Please try again.',
                         reconnect: response.status === 401 || response.status === 403 });
                     return;
                 }
                 if (!Array.isArray(data.tracks)) throw new Error('Invalid search response');
-                setState({ query: term, tracks: data.tracks, pending: false });
+                setState({ key, tracks: data.tracks });
                 setActiveIndex(-1);
             } catch {
                 if (!controller.signal.aborted) {
-                    setState({ query: term, tracks: [], pending: false,
+                    setState({ key, tracks: [],
                         error: 'Could not search Spotify. Please try again or paste a Spotify URL below.' });
                 }
             }
@@ -80,7 +80,7 @@ export function SpotifyTrackSearch({ onSelect, disabled = false }: {
             clearTimeout(timer);
             controller.abort();
         };
-    }, [term, canSearch, retry]);
+    }, [term, canSearch, key]);
 
     useEffect(() => {
         if (showResults && activeIndex >= 0) {

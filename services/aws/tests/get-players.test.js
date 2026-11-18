@@ -16,7 +16,7 @@ function setup(user, response) {
     require(name) {
       if (name === '/opt/spotify-token') {
         const nested = { ...context, module: { exports: {} } };
-        vm.runInNewContext(readFileSync(`${__dirname}/../../layers/spotify/spotify-token.js`, 'utf8'), nested);
+        vm.runInNewContext(readFileSync(`${__dirname}/../layers/spotify/spotify-token.js`, 'utf8'), nested);
         return nested.module.exports;
       }
       if (name === '@aws-sdk/client-dynamodb') return { DynamoDBClient: class {} };
@@ -39,7 +39,7 @@ function setup(user, response) {
       return next;
     },
   };
-  vm.runInNewContext(readFileSync(`${__dirname}/index.js`, 'utf8'), context);
+  vm.runInNewContext(readFileSync(`${__dirname}/../lambdas/getPlayers/index.js`, 'utf8'), context);
   return {
     writes,
     calls,

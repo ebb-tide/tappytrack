@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { upstreamJson } from '@/lib/upstream';
+import { readJsonBody, upstreamJson } from '@/lib/upstream';
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -10,7 +10,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const body = await req.json();
+  const body = await readJsonBody(req);
+  if (!body) {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
   const { spotifyPlayerId, spotifyPlayerName } = body;
   if (!spotifyPlayerId || !spotifyPlayerName) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
