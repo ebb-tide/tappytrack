@@ -7,53 +7,9 @@
 ## deploy aws assets with:
 deploy.sh
 
-## telegram notifications (optional):
-- message @BotFather in Telegram, /newbot, copy the bot token
-- open a chat with your new bot and press Start
-- get your numeric chat id from @userinfobot
-- add TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID to .env, then run deploy.sh
-- pings on: sign-in, new user, card added, device claimed, unknown card tapped
-- delivery runs in `tappytrackTelegramNotify`, separately from API responses;
-  API handlers wait at most 500 ms for AWS to accept a notification
-- failed delivery is retried twice within one hour, then retained in the
-  `NotificationFailureQueue` SQS destination for 14 days; an enqueue failure is
-  logged by the originating Lambda and does not fail the user action
-
-## backend tests:
-- `node --test services/aws/tests/*.test.js services/aws/lambdas/getPlayers/index.test.js`
-
-## tap deadlines:
-- tap processing shares a 4.3-second work budget (Spotify calls at most 2 seconds,
-  database calls at most 1 second, no SDK retries); errors return HTTP 504 before
-  the tap Lambda's 5-second limit, with 700 ms reserved for error recording and response
-- the device allows 6.5 seconds for connection, deferred TLS, request writes,
-  and any safe connection retry, then feeds the watchdog and gives the AWS
-  response its own 6.5-second deadline; slow TLS setup must not consume AWS's
-  response allowance. It closes after the status instead of reading the body
-- the 8-second hardware watchdog still recovers native DNS or hardware hangs;
-  MicroPython's blocking native DNS lookup cannot be cancelled by this HTTP client
-- upload both `main.py` and `tap_http.py` to existing devices for the HTTP deadline;
-  no changes to `device.json`, Wi-Fi configuration, or the base firmware are needed
-- firmware tests: `python3 -B -m unittest discover -s devices/pi-pico/tests -v`
-
 # web app
 - cd apps/web
 - npm run dev
-
-# deploy to vercel by pushing to git.
-# web app now lives in apps/web
-- web API tests: `cd apps/web && npm test`
-
-## song search
-- after tapping a blank card, type at least 2 characters of a song title or artist;
-  suggestions appear after a 300 ms typing pause
-- choose a song with a click or the arrow keys and Enter; Escape dismisses suggestions
-- selecting a result fills its Spotify URL and saves its song/artist details without
-  another metadata lookup; pasting a Spotify URL is still supported
-- search uses the signed-in user's Spotify connection on the server, shares the
-  existing token-refresh layer, and honors Spotify's rate-limit cooldown
-- deploy the AWS template to add the new `GET /search` endpoint and `searchTracks`
-  Lambda before releasing the web changes
 
 # how to set up a new device:
 - plug in pi pico
