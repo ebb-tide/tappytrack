@@ -94,7 +94,7 @@ def read_wifi_config():
     try:
         with open(WIFI_FILE, "r") as f:
             creds = json.load(f)
-            print("Successfuly loaded creds", creds["ssid"])
+            print("Successfully loaded creds", creds["ssid"])
 
             return creds["ssid"], creds["password"]
     except (OSError, ValueError, KeyError):
@@ -104,7 +104,7 @@ def read_device_config():
     try:
         with open(DEVICE_FILE, "r") as f:
             creds = json.load(f)
-            print("Successfuly loaded device creds for ", creds["device_id"])
+            print("Successfully loaded device creds for ", creds["device_id"])
 
             return creds["device_id"], creds["lambda_url"], creds["lambda_secret"]
     except (OSError, ValueError, KeyError):

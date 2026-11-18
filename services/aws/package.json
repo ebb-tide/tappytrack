@@ -1,0 +1,11 @@
+{
+  "name": "tappytrack-aws",
+  "private": true,
+  "description": "Test runner for the SAM backend. Lambdas use the AWS SDK bundled with the Node.js runtime and have no dependencies of their own.",
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

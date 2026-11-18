@@ -1,6 +1,5 @@
 "use client"
-// https://ui.shadcn.com/colors
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { Music, Nfc, Plus, LogOut, Smartphone, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -11,17 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { SpotifyTrackSearch, type SpotifyTrack } from "@/components/spotify-track-search"
-
-declare module "next-auth" {
-    interface Session {
-        user?: {
-            id?: string;
-            name?: string | null;
-            email?: string | null;
-            image?: string | null;
-        }
-    }
-}
 
 interface Card {
     id: string
@@ -36,12 +24,38 @@ interface LastError {
     at?: number | null
 }
 
+interface SpotifyPlayer {
+    id: string
+    name: string
+}
+
+async function fetchSpotifyPlayers(): Promise<{ players: SpotifyPlayer[], error: string | null }> {
+    try {
+        const res = await fetch('/api/get-players');
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.error || `Could not load Spotify devices (${res.status}).`);
+        }
+        if (!Array.isArray(data.players)) {
+            throw new Error('Could not load Spotify devices. Please try again.');
+        }
+        const players = data.players
+            .filter((d: { id: string | null }) => d.id)
+            .map((d: SpotifyPlayer) => ({ id: d.id, name: d.name }));
+        return { players, error: null };
+    } catch (err) {
+        console.error("Error fetching Spotify players:", err);
+        return { players: [], error: err instanceof Error ? err.message : 'Could not load Spotify devices.' };
+    }
+}
+
 export default function Dashboard() {
     const { data: session, status } = useSession();
-    const [lastTappedCardId, setLastTappedCardId] = useState(null);
+    const userId = session?.user?.id;
+    const [lastTappedCardId, setLastTappedCardId] = useState<string | null>(null);
     const [cards, setCards] = useState<Card[]>([]);
     const [deviceid, setDeviceId] = useState("");
-    const [spotifyPlayers, setSpotifyPlayers] = useState<{ id: string, name: string }[]>([]);
+    const [spotifyPlayers, setSpotifyPlayers] = useState<SpotifyPlayer[]>([]);
     const [playersLoading, setPlayersLoading] = useState(true);
     const [playersError, setPlayersError] = useState<string | null>(null);
     const [currentSpotifyPlayer, setCurrentSpotifyPlayer] = useState<string>("");
@@ -52,83 +66,58 @@ export default function Dashboard() {
     const [addingCard, setAddingCard] = useState(false);
     const [addCardError, setAddCardError] = useState<string | null>(null);
     const [newDeviceId, setNewDeviceId] = useState("");
-    // const deviceInputRef = useRef<HTMLInputElement>(null);
     const [selectedSpotifyPlayer, setSelectedSpotifyPlayer] = useState<string>("");
 
-    // const [_, setShowDeviceModal] = useState(false);  // todo add modal for device ID input
-
-
-
-    const fetchState = async () => {
-        if (status === 'authenticated' && session?.user?.id) {
-            try {
-                const res = await fetch(`/api/get-cards?userid=${session.user.id}`);
-                const data = await res.json();
-                setCards(data.cards || []);
-                // Only set last tapped card if it's NOT already present in the user's cards
-                const lastCard = data.lastCard || null;
-                if (lastCard) {
-                    const alreadyHasCard = Array.isArray(data.cards) && data.cards.some((c: { id: string }) => c.id === lastCard);
-                    setLastTappedCardId(alreadyHasCard ? null : lastCard);
-                } else {
-                    setLastTappedCardId(null);
-                }
-                setDeviceId(data.deviceid || "");
-                setCurrentSpotifyPlayer(data.player?.name || "");
-                setLastError(data.lastError || null);
-                // if (!data.deviceid) {
-                //     setShowDeviceModal(true);
-                //     if (deviceInputRef.current) {
-                //         deviceInputRef.current.focus();
-                //     }
-                // }
-            } catch (err) {
+    // The API routes take the user from the session, so no userid is sent.
+    // State is set in .then callbacks: the effect below calls these, and
+    // react-hooks/set-state-in-effect flags any setState in their own bodies.
+    const fetchState = useCallback(() => {
+        if (!userId) return Promise.resolve();
+        return fetch('/api/get-cards')
+            .then(res => res.json())
+            .catch(err => {
                 console.error("Error fetching cards:", err);
-                setCards([]);
-                setLastTappedCardId(null);
-                setDeviceId("");
-                setLastError(null);
-            }
-        }
-    };
+                return null;
+            })
+            .then(data => {
+                const cards: Card[] = Array.isArray(data?.cards) ? data.cards : [];
+                setCards(cards);
+                // Only offer the last tapped card if it isn't already in the collection.
+                const lastCard: string | null = data?.lastCard || null;
+                setLastTappedCardId(lastCard && !cards.some(c => c.id === lastCard) ? lastCard : null);
+                setDeviceId(data?.deviceid || "");
+                setCurrentSpotifyPlayer(data?.player?.name || "");
+                setLastError(data?.lastError || null);
+            });
+    }, [userId]);
 
-    // Fetch Spotify players for the user
-    const fetchSpotifyPlayers = async () => {
-        if (session?.user?.id) {
-            setPlayersLoading(true);
-            setPlayersError(null);
-            try {
-                const res = await fetch(`/api/get-players?userid=${session.user.id}`);
-                const data = await res.json();
-                if (!res.ok) {
-                    throw new Error(data.error || `Could not load Spotify devices (${res.status}).`);
-                }
-                if (Array.isArray(data.players)) {
-                    const players = data.players.filter((d: { id: string | null }) => d.id);
-                    setSpotifyPlayers(players.map((d: { id: string; name: string }) => ({ id: d.id, name: d.name })));
-                    setSelectedSpotifyPlayer(players.length > 0 ? players[0].id : "");
-                } else {
-                    throw new Error('Could not load Spotify devices. Please try again.');
-                }
-            } catch (err) {
-                console.error("Error fetching Spotify players:", err);
-                setSpotifyPlayers([]);
-                setSelectedSpotifyPlayer("");
-                setPlayersError(err instanceof Error ? err.message : 'Could not load Spotify devices.');
-            } finally {
-                setPlayersLoading(false);
-            }
-        }
+    const loadSpotifyPlayers = useCallback(() => {
+        if (!userId) return Promise.resolve();
+        return fetchSpotifyPlayers().then(({ players, error }) => {
+            setSpotifyPlayers(players);
+            setSelectedSpotifyPlayer(players[0]?.id ?? "");
+            setPlayersError(error);
+            setPlayersLoading(false);
+        });
+    }, [userId]);
+
+    const refreshSpotifyPlayers = () => {
+        setPlayersLoading(true);
+        setPlayersError(null);
+        loadSpotifyPlayers();
     };
 
     useEffect(() => {
         fetchState();
-        fetchSpotifyPlayers();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [status, session]);
+        loadSpotifyPlayers();
+    }, [fetchState, loadSpotifyPlayers]);
+
+    useEffect(() => {
+        if (status === 'unauthenticated') signIn('spotify');
+    }, [status]);
 
     const handleAddCard = async () => {
-        if (addingCard || !lastTappedCardId || spotifyUrl.trim() === "" || !session?.user?.id) return;
+        if (addingCard || !lastTappedCardId || spotifyUrl.trim() === "" || !userId) return;
         setAddingCard(true);
         setAddCardError(null);
         try {
@@ -136,7 +125,6 @@ export default function Dashboard() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    userid: session.user.id,
                     cardID: lastTappedCardId,
                     spotifyURL: spotifyUrl.trim(),
                     ...(selectedTrack?.spotifyUrl === spotifyUrl.trim() ? {
@@ -161,36 +149,34 @@ export default function Dashboard() {
     };
 
     const handleDeleteCard = async (id: string) => {
-        if (!session?.user?.id) return;
+        if (!userId) return;
         const res = await fetch('/api/delete-card', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userid: session.user.id, cardID: id }),
+            body: JSON.stringify({ cardID: id }),
         });
         if (res.ok) {
             fetchState();
         } else {
-            console.log('Failed to delete card:', res.statusText);
+            console.error('Failed to delete card:', res.statusText);
         }
-    }
+    };
 
     const handleNewDeviceSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!session?.user?.id || !newDeviceId.trim()) return;
+        if (!userId || !newDeviceId.trim()) return;
         try {
             const res = await fetch('/api/add-device', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userid: session.user.id, deviceid: newDeviceId.trim() }),
+                body: JSON.stringify({ deviceid: newDeviceId.trim() }),
             });
             if (res.ok) {
                 setDeviceId(newDeviceId.trim());
-                // setShowDeviceModal(false);
                 setNewDeviceId("");
                 fetchState();
             } else {
-                // Optionally handle error
-                console.log('Failed to add device:', res.statusText);
+                console.error('Failed to add device:', res.statusText);
             }
         } catch (err) {
             console.error('Failed to add device:', err);
@@ -199,14 +185,14 @@ export default function Dashboard() {
 
     // Save selected Spotify player to user profile
     const handleSetSpotifyPlayer = async () => {
-        if (!session?.user?.id || !selectedSpotifyPlayer) return;
+        if (!userId || !selectedSpotifyPlayer) return;
         const player = spotifyPlayers.find(p => p.id === selectedSpotifyPlayer);
         if (!player) return;
         try {
             await fetch("/api/set-player", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ userid: session.user.id, spotifyPlayerId: player.id, spotifyPlayerName: player.name })
+                body: JSON.stringify({ spotifyPlayerId: player.id, spotifyPlayerName: player.name })
             });
             fetchState();
         } catch (err) {
@@ -215,10 +201,7 @@ export default function Dashboard() {
     };
 
     if (status === 'loading') return <div>Loading...</div>;
-    if (!session) {
-        signIn('spotify');
-        return <div>Redirecting to login...</div>;
-    }
+    if (!session) return <div>Redirecting to login...</div>;
 
 
     return (
@@ -226,7 +209,7 @@ export default function Dashboard() {
             {/* Header */}
             <header className="bg-emerald-300 text-emerald-800 p-4 shadow-lg">
                 <div className="bg-emerald-300 flex items-center justify-between">
-                    <div className=" bg-emerald-250 flex items-center gap-3">
+                    <div className="flex items-center gap-3">
                         <div className="bg-emerald-300 p-2 rounded-full">
                             <Music className="h-6 w-6" />
                         </div>
@@ -248,7 +231,7 @@ export default function Dashboard() {
                     <div className="space-y-6">
                         {/* Device Settings */}
 
-                        <Card className="border-emerald-200 shadow-mdv rounded-md p-0">
+                        <Card className="border-emerald-200 rounded-md p-0">
                             <CardHeader className="bg-emerald-100 p-4 rounded-t-md pb-3">
                                 <CardTitle className="flex items-center gap-2 text-emerald-800">
                                     <Smartphone className="h-5 w-5" />
@@ -285,7 +268,7 @@ export default function Dashboard() {
                         </Card>
 
                         {/* Spotify Player Selection */}
-                        <Card className="border-emerald-200 shadow-mdv rounded-md">
+                        <Card className="border-emerald-200 rounded-md">
                             <CardHeader className="bg-emerald-100 pb-3 p-4 rounded-t-md">
                                 <CardTitle className="flex items-center gap-2 text-emerald-800">
                                     <Smartphone className="h-5 w-5" />
@@ -338,14 +321,14 @@ export default function Dashboard() {
                                         <p className="text-sm text-gray-600">No devices found. Open Spotify on your iPhone, play a song, then refresh devices.</p>
                                     )}
                                     <div className="flex flex-wrap gap-2">
-                                        <Button variant="outline" onClick={fetchSpotifyPlayers} disabled={playersLoading}>Refresh devices</Button>
+                                        <Button variant="outline" onClick={refreshSpotifyPlayers} disabled={playersLoading}>Refresh devices</Button>
                                         {playersError && <Button variant="outline" onClick={() => signIn('spotify', { callbackUrl: '/dashboard' })}>Reconnect Spotify</Button>}
                                     </div>
                                 </div>
                             </CardContent>
                         </Card>
 
-                        <Card className="border-emerald-200 shadow-mdv rounded-md">
+                        <Card className="border-emerald-200 rounded-md">
                             <CardHeader className="bg-emerald-100 pb-3 p-4 rounded-t-md">
                                 <CardTitle className="flex items-center gap-2 text-emerald-800">
                                     Last Error
@@ -377,7 +360,7 @@ export default function Dashboard() {
                     <div className="flex flex-col gap-6 min-w-0">
                         {/* Add New Card */}
 
-                        <Card className="border-emerald-200 shadow-mdv rounded-md p-0">
+                        <Card className="border-emerald-200 rounded-md p-0">
                             <CardHeader className="bg-emerald-100 text-emerald-800 p-4 rounded-t-md">
                                 <CardTitle className="flex items-center">
                                     <Plus className="h-5 w-5" />
@@ -425,7 +408,7 @@ export default function Dashboard() {
                                     </div>
                                     <Button
                                         onClick={handleAddCard}
-                                        disabled={(addingCard || !lastTappedCardId || spotifyUrl.trim() === "" || !session?.user?.id)}
+                                        disabled={addingCard || !lastTappedCardId || spotifyUrl.trim() === "" || !userId}
                                         className="text-emerald-800 bg-emerald-300 hover:bg-emerald-400 mt-4 disabled:opacity-60"
                                     >
                                         <Plus className="h-4 w-4 mr-2" />
@@ -439,7 +422,7 @@ export default function Dashboard() {
 
                         {/* Cards Table */}
 
-                        <Card className="border-emerald-200 shadow-mdv rounded-md p-0">
+                        <Card className="border-emerald-200 rounded-md p-0">
                             <CardHeader className="bg-emerald-100 text-emerald-800 p-4 rounded-t-md">
                                 <CardTitle className="flex items-center gap-2">
                                     <Nfc className="h-5 w-5" />
@@ -459,7 +442,7 @@ export default function Dashboard() {
                                     </TableHeader>
                                     <TableBody>
                                         {cards.map((card) => (
-                                            <TableRow key={card.id} className="hover:bg-emerald-25">
+                                            <TableRow key={card.id} className="hover:bg-emerald-50">
                                                 <TableCell>
                                                     <Badge variant="outline" className="border-emerald-400 text-emerald-700 bg-emerald-50">
                                                         {card.id}
@@ -472,16 +455,10 @@ export default function Dashboard() {
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex gap-2">
-                                                        {/* <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="text-emerald-300 hover:text-emerald-800 hover:bg-emerald-50"
-                                                        >
-                                                            <Edit className="h-4 w-4" />
-                                                        </Button> */}
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
+                                                            aria-label={`Delete card ${card.id}`}
                                                             onClick={() => handleDeleteCard(card.id)}
                                                             className="text-emerald-300 hover:text-emerald-800 hover:bg-emerald-100"
                                                         >
